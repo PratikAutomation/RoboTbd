@@ -6,15 +6,15 @@ Branch: master
 
 ## Problem
 
-Industrial robot arm downtime costs $10-50K/hour. Current process when robot fails: call manufacturer, wait 2 days, pay $500/hr technician. Scheduled maintenance wastes money on healthy robots. Reactive repair wastes more on emergency calls.
+73% of factories run robots from 2+ vendors. Each vendor ships their own monitoring tool (UR Insight, KUKA Connect, ABB Ability, FANUC ZDT). These tools monitor their own brand only -- they will never show competitor data. The maintenance manager juggles 3-4 dashboards, 3-4 alarm systems, and an Excel sheet to cross-reference. Nobody can answer "which robot on my line needs attention first?" without checking every tool manually.
 
-Every robot arm already streams diagnostic data via OPC-UA (joint torques, temperatures, vibration, error codes). Nobody uses this data for predictive maintenance at the small/mid manufacturer level. Enterprise solutions (Siemens MindSphere, ABB Ability) cost $100K+ and take months to deploy.
+Unplanned robot downtime costs $10-50K/hour. One failure event: $50-250K. Enterprise solutions (Siemens Insights Hub) cost $100K+ and take 6-12 months. Mid-size manufacturers can't afford them. General IoT platforms (Ignition, AWS SiteWise) read OPC-UA tags but don't understand what a robot joint IS.
 
 ## Product
 
-Real-time robot health monitoring and AI-powered failure prediction from existing OPC-UA diagnostic data. No new sensors, no new hardware.
+Vendor-neutral robot fleet monitoring with unified health scores, smart alarms, and failure predictions. One dashboard for UR, KUKA, ABB, FANUC -- any robot with OPC-UA. No new sensors, no new hardware.
 
-**One sentence:** "Predict robot failures before they happen using the factory data you already collect."
+**One sentence:** "One dashboard for your entire mixed-vendor robot fleet."
 
 ## Target User
 

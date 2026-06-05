@@ -1,6 +1,6 @@
 # RoboLink -- Startup Blueprint
 
-**Robot Health Monitoring & Predictive Failure from OPC-UA Data**
+**Vendor-Neutral Robot Fleet Monitoring, Alarms & Predictive Maintenance**
 Prepared: June 4, 2026 | Founder: Pratik Patil
 
 ---
@@ -22,21 +22,26 @@ The root cause: a bearing in Joint 3 had been degrading for 3 weeks. The signs w
 
 ## 2. The Product
 
-**One sentence:** RoboLink predicts robot failures before they happen using the OPC-UA diagnostic data your factory already collects.
+**One sentence:** One dashboard for your entire mixed-vendor robot fleet with health scores, alarms, and failure predictions from your existing OPC-UA data.
 
-**What it does:**
-1. Connects to robot OPC-UA diagnostic nodes (joint torques, temperatures, vibration, error codes)
-2. Displays real-time health dashboard with per-robot health scores (0-100)
-3. Fires smart alarms when metrics cross thresholds (warning at 75C, critical at 90C)
-4. Predicts failures using trend analysis ("Joint 3: 18 days to failure, 83% confidence")
-5. Logs everything for maintenance planning and audit
+**The multi-vendor problem:** 73% of factories run robots from 2+ vendors. Each vendor ships their own monitoring tool (UR Insight, KUKA Connect, ABB Ability, FANUC ZDT). They will NEVER show competitor data. The maintenance manager juggles 3-4 dashboards and an Excel sheet.
+
+**What RoboLink does:**
+1. Connects to ANY robot via OPC-UA (UR, KUKA, ABB, FANUC)
+2. Normalizes vendor-specific data into a common schema via device profiles
+3. Displays unified health dashboard with cross-vendor health scores (0-100)
+4. Fires smart alarms -- one prioritized queue across all vendors
+5. Predicts failures using trend analysis ("Joint 3: 18 days to failure, 83% confidence")
+6. Answers the question manufacturer tools can't: "Which robot on my line needs attention FIRST?"
+7. Logs everything for maintenance planning and audit
 
 **What it replaces:**
+- 3-4 separate vendor dashboards
+- Excel cross-referencing between monitoring tools
 - $500/hr emergency technician calls
 - Reactive "fix it when it breaks" maintenance
 - Wasteful scheduled maintenance on healthy robots
-- Excel spreadsheets tracking robot health manually
-- Enterprise solutions costing $100K+ (Siemens MindSphere, ABB Ability)
+- Enterprise solutions costing $100K+ (Siemens Insights Hub)
 
 **API surface (what the engineer writes):**
 ```python
