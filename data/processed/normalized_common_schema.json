@@ -1,0 +1,951 @@
+{
+  "schema_version": "1.0",
+  "description": "RoboLink Common Schema - normalized from multiple robot vendors",
+  "normalization_demo": {
+    "ur5_original_format": {
+      "node_structure": "obs.state.manipulator.qpos[6], qtorque[6], qvel[6]",
+      "position_unit": "radians",
+      "torque_unit": "Nm",
+      "velocity_unit": "rad/s"
+    },
+    "so100_original_format": {
+      "node_structure": "observation.state[6]",
+      "position_unit": "servo_ticks (raw encoder)",
+      "torque_unit": "not available",
+      "velocity_unit": "not available"
+    },
+    "common_schema": {
+      "position_unit": "radians (always)",
+      "torque_unit": "Nm (always, derived from current if needed)",
+      "velocity_unit": "rad/s (always)",
+      "temperature_unit": "celsius (always)"
+    }
+  },
+  "robots": [
+    {
+      "robot_id": "Robot1",
+      "vendor": "ur",
+      "model": "ur5",
+      "source_format": "LeRobot/UR5 (qpos/qtorque/qvel arrays)",
+      "normalized_by": "profiles/universal_robots.yaml",
+      "timestamp": 0.0,
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": -1.5708,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": -1.5708,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.5708,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot1",
+      "vendor": "ur",
+      "model": "ur5",
+      "source_format": "LeRobot/UR5 (qpos/qtorque/qvel arrays)",
+      "normalized_by": "profiles/universal_robots.yaml",
+      "timestamp": 0.05000000074505806,
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": 0.0,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": -1.5708,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": -1.5708,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": -1.5708,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.5708,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot1",
+      "vendor": "ur",
+      "model": "ur5",
+      "source_format": "LeRobot/UR5 (qpos/qtorque/qvel arrays)",
+      "normalized_by": "profiles/universal_robots.yaml",
+      "timestamp": 0.10000000149011612,
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": 0.0,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot1",
+      "vendor": "ur",
+      "model": "ur5",
+      "source_format": "LeRobot/UR5 (qpos/qtorque/qvel arrays)",
+      "normalized_by": "profiles/universal_robots.yaml",
+      "timestamp": 0.15000000596046448,
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": 0.0,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.5708,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot1",
+      "vendor": "ur",
+      "model": "ur5",
+      "source_format": "LeRobot/UR5 (qpos/qtorque/qvel arrays)",
+      "normalized_by": "profiles/universal_robots.yaml",
+      "timestamp": 0.20000000298023224,
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": -1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.5708,
+          "velocity_rad_s": -0.0,
+          "torque_nm": -0.0,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.0,
+          "torque_nm": 0.0,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot2",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.0,
+      "label": "normal",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.303728,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 2.420623,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 1.876059,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": 1.329962,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.68738,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 1.763479,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot2",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.03333333507180214,
+      "label": "normal",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.303728,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 2.416021,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 1.872991,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": 1.351438,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.68738,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 1.778603,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot2",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.06666667014360428,
+      "label": "normal",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.297592,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 2.406817,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 1.869923,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": 1.369845,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.684312,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 1.790703,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot2",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.10000000149011612,
+      "label": "normal",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.297592,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 2.397613,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 1.868389,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": 1.379049,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.681244,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 1.798265,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot2",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.13333334028720856,
+      "label": "normal",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.297592,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 2.373069,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 1.868389,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": 1.385185,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 1.681244,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 1.802802,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot3",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.0,
+      "label": "anomaly",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.039884,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 3.040351,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 2.230409,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": -0.070563,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 2.225807,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 0.004537,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot3",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.03333333507180214,
+      "label": "anomaly",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.055223,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 3.006604,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 2.198195,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": -0.018408,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 2.179788,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 0.004537,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot3",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.06666667014360428,
+      "label": "anomaly",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.065961,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 2.972856,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 2.162914,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": 0.064427,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 2.135302,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 0.004537,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot3",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.10000000149011612,
+      "label": "anomaly",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.076699,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 2.939108,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 2.133768,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": 0.138058,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 2.116894,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 0.004537,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    },
+    {
+      "robot_id": "Robot3",
+      "vendor": "so100",
+      "model": "so-arm100",
+      "source_format": "LeRobot/SO-ARM100 (observation.state array)",
+      "normalized_by": "profiles/so_arm100.yaml",
+      "timestamp": 0.13333334028720856,
+      "label": "anomaly",
+      "joints": [
+        {
+          "joint_id": 1,
+          "position_rad": -0.082835,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 2,
+          "position_rad": 2.903827,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 3,
+          "position_rad": 2.109224,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 4,
+          "position_rad": 0.20402,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 5,
+          "position_rad": 2.093885,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        },
+        {
+          "joint_id": 6,
+          "position_rad": 0.004537,
+          "velocity_rad_s": null,
+          "torque_nm": null,
+          "temperature_c": null,
+          "error_code": 0
+        }
+      ],
+      "status": {
+        "mode": "running"
+      }
+    }
+  ]
+}
