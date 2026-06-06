@@ -19,10 +19,7 @@ from openai import AsyncOpenAI
 log = structlog.get_logger()
 
 # Qwen API config
-QWEN_API_KEY = os.environ.get(
-    "DASHSCOPE_API_KEY",
-    "sk-ws-H.IHEXEI.2X02.MEQCIA9Bvo1GIlbFfXcapsreqBswe3stq0GZ3FiNN5FBg2JnAiAoLTXwhYl7NopOy8k_Yg0wzTBDmgoS9U7yP3R8aN7CCg",
-)
+QWEN_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
 QWEN_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 QWEN_MODEL = "qwen-plus"  # 3s response, good quality. Use qwen3.7-max for batch/offline.
 
