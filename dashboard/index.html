@@ -18,6 +18,15 @@
   .hud { position:fixed; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; pointer-events:none; transition: opacity 0.3s; }
   .tl{top:80px;left:16px;} .tr{top:16px;right:16px;text-align:right;}
   .brand-logo { position:fixed; top:14px; left:18px; height:54px; width:auto; z-index:12; pointer-events:none; }
+
+  /* Hero facility title — building view only, fills the empty space left of the model */
+  #hero { position:fixed; left:5%; top:50%; transform:translateY(-50%); z-index:5; pointer-events:none;
+    max-width:44vw; display:none; }
+  #hero .hero-sub { font-size:12px; letter-spacing:0.4em; text-transform:uppercase; color:var(--hud); opacity:0.6; margin-bottom:12px; }
+  #hero .hero-title { font-size:clamp(46px, 7.5vw, 120px); line-height:0.92; font-weight:800;
+    letter-spacing:0.01em; text-transform:uppercase; color:#eaf6fb; text-shadow:0 0 34px rgba(78,229,255,0.28); }
+  #hero .hero-tag { margin-top:16px; font-size:clamp(11px, 1.1vw, 15px); letter-spacing:0.22em;
+    text-transform:uppercase; color:var(--edge); opacity:0.85; }
   .bl{bottom:16px;left:16px;} .br{bottom:16px;right:16px;text-align:right;}
   .hud .v{color:var(--edge);} .hud .f1{color:var(--f1);} .hud .f2{color:var(--f2);} .hud .f3{color:var(--f3);} .hud .f4{color:var(--f4);}
   .hud .label{opacity:0.5;display:block;font-size:9px;margin-bottom:3px;} .hud .row{margin-top:8px;}
@@ -211,7 +220,7 @@
   .mq-card:hover { border-color:#4ea1ff; }
 
   /* Top-left fault control: a collapsible "Fault Simulation" button + body (floor view) */
-  #fault-ctrl { position:fixed; top:128px; left:16px; width:230px; z-index:11; display:none; }
+  #fault-ctrl { position:fixed; top:176px; left:16px; width:230px; z-index:11; display:none; }
   .fc-toggle { width:100%; display:flex; align-items:center; gap:6px; background:rgba(255,94,94,0.14);
     border:1px solid rgba(255,94,94,0.5); color:#ff9b8a; padding:9px 12px; font:inherit; font-size:10px;
     letter-spacing:0.16em; text-transform:uppercase; cursor:pointer; text-align:left; }
@@ -286,6 +295,11 @@
 <div class="hud bl" id="hud-bl"></div>
 <div class="hud br" id="hud-br"></div>
 <div id="fault-ctrl"></div>
+<div id="hero">
+  <div class="hero-sub">Facility</div>
+  <div class="hero-title">PLANT 07</div>
+  <div class="hero-tag">Mixed-vendor robot fleet · live digital twin</div>
+</div>
 <div id="badges"></div>
 <aside class="panel" id="panel" style="color:var(--edge)"></aside>
 <div id="floor-dash"></div>
@@ -559,6 +573,189 @@ Absolute Multi-Turn Encoder, AME-17/4096 (Vendor Part No. URC-ENC1-17B).
 **Cost of Inaction:**
 Encoder failure mid-cycle causes a protective fault stop and loss of calibration, with about **5 hours** of **downtime** for re-homing and re-mastering, likely within **1–2 weeks**.`
 };
+// ---- Non-arm machine faults (conveyors, bottling line) ----
+// These machines have no joints, so faults use a machine-level signal (no joint metric).
+const CONVEYOR_FAULTS = [
+  { id: 'belt_motor_overcurrent', label: 'Belt drive overcurrent',
+    machineTypes: ['conveyor_line','assembly_track'],
+    severity: 'critical', priority: 'Critical',
+    signal: 'Motor current', value: 14.2, unit: 'A', threshold: 11 },
+  { id: 'belt_mistracking', label: 'Belt mistracking / edge drift',
+    machineTypes: ['conveyor_line'],
+    severity: 'warning', priority: 'Medium',
+    signal: 'Belt edge offset', value: 18.0, unit: 'mm', threshold: 10 },
+  { id: 'drive_bearing_wear', label: 'Drive bearing wear',
+    machineTypes: ['conveyor_line','assembly_track'],
+    severity: 'warning', priority: 'High',
+    signal: 'Bearing vibration', value: 7.8, unit: 'mm/s', threshold: 4.5 }
+];
+const CONVEYOR_DIAGNOSES = {
+  belt_motor_overcurrent: `## Diagnosis: BELT_MOTOR_OVERCURRENT
+
+**Confidence:** High (4/5 sensors confirm)
+
+**Evidence:**
+- **Motor current:** 14.2 A — 29% over the 11 A trip threshold, sustained for 90 s.
+- **Belt speed:** dropped to 0.31 m/s against a 0.50 m/s setpoint — drive is loaded but stalling.
+- **Drive temperature:** 78 °C and climbing 4 °C/min, near the 85 °C derating limit.
+- **Throughput:** fell from 142 to 61 parts/min as the belt bogs down.
+
+**Root Cause:**
+Current draw spiking with falling belt speed points to a mechanical jam or seized idler rather than a winding fault. A part is almost certainly wedged at a transfer point or the take-up has bound, forcing the motor to overwork against a stuck load.
+
+**Action:**
+Stop the conveyor and lock out the drive now. Clear the jam, inspect idlers and the take-up assembly, then verify free rotation before restart. **Timeline: within 2 hours** to avoid thermal trip and motor damage.
+
+**Parts (if applicable):**
+Drive idler roller assembly, Part No. CV-IDL-220-SS.
+
+**Cost of Inaction:**
+Continued overcurrent will burn the motor windings and trip the VFD, escalating a 30-minute clear into a full drive swap. **Estimated downtime: 6-8 hours.**`,
+  belt_mistracking: `## Diagnosis: BELT_MISTRACKING
+
+**Confidence:** Medium (3/5 sensors confirm)
+
+**Evidence:**
+- **Belt edge offset:** 18 mm off centerline — 8 mm past the 10 mm tracking limit.
+- **Edge wear sensor:** detecting intermittent frame contact on the drive side.
+- **Belt speed:** stable at 0.49 m/s, ruling out a load or drive fault.
+- **Drive temperature:** normal at 41 °C.
+
+**Root Cause:**
+Steady one-sided drift with no speed or thermal change is classic mistracking, typically from an out-of-square idler, uneven take-up tension, or material buildup on a pulley lagging. The belt is steering toward the high-tension side and rubbing the frame.
+
+**Action:**
+Inspect and re-square the snub and tail idlers, clean the pulley lagging, and adjust take-up tension evenly. Re-center the belt and monitor offset over a full shift. **Timeline: within 2 weeks** before edge damage becomes permanent.
+
+**Parts (if applicable):**
+Self-aligning trough idler, Part No. CV-ALN-150-3R.
+
+**Cost of Inaction:**
+Sustained frame contact frays the belt edge and can split the carcass, forcing a full belt replacement. **Estimated downtime: 4-5 hours.**`,
+  drive_bearing_wear: `## Diagnosis: DRIVE_BEARING_WEAR
+
+**Confidence:** High (4/5 sensors confirm)
+
+**Evidence:**
+- **Bearing vibration:** 7.8 mm/s RMS — 73% over the 4.5 mm/s ISO alert threshold.
+- **Vibration trend:** rising 0.4 mm/s per week, with a clear bearing defect frequency peak.
+- **Drive temperature:** 62 °C, up 9 °C from baseline at the drive pulley housing.
+- **Belt speed:** holding 0.50 m/s, so no slip yet — failure is still developing.
+
+**Root Cause:**
+The escalating vibration with a localized housing temperature rise indicates spalling on the drive pulley bearing race. Lubrication breakdown or contamination ingress is accelerating wear; the defect-frequency peak confirms an inner-race fault rather than imbalance.
+
+**Action:**
+Schedule a bearing replacement during the next planned stop. Re-grease as an interim measure and trend vibration daily until then. **Timeline: within 3 weeks** to stay ahead of seizure.
+
+**Parts (if applicable):**
+Drive pulley pillow-block bearing, Part No. CV-BRG-6312-2RS.
+
+**Cost of Inaction:**
+An untreated race fault will seize the pulley, snap the belt, and may damage the shaft, converting a planned swap into emergency repair. **Estimated downtime: 8-10 hours.**`
+};
+const BOTTLING_FAULTS = [
+  { id: 'filler_nozzle_clog', label: 'Filler nozzle clog',
+    machineTypes: ['filler'], severity: 'warning', priority: 'High',
+    signal: 'Fill volume', value: 472, unit: 'mL', threshold: 495 },
+  { id: 'filler_pump_pressure_loss', label: 'Fill-pump pressure loss',
+    machineTypes: ['filler'], severity: 'critical', priority: 'Critical',
+    signal: 'Pump pressure', value: 1.8, unit: 'bar', threshold: 2.6 },
+  { id: 'capper_over_torque', label: 'Cap over-torque',
+    machineTypes: ['capper'], severity: 'critical', priority: 'High',
+    signal: 'Cap torque', value: 2.9, unit: 'Nm', threshold: 2.2 },
+  { id: 'capper_cap_misfeed', label: 'Cap misfeed / jam',
+    machineTypes: ['capper'], severity: 'warning', priority: 'High',
+    signal: 'Reject rate', value: 7.4, unit: '%', threshold: 3.0 }
+];
+const BOTTLING_DIAGNOSES = {
+  filler_nozzle_clog: `## Diagnosis: FILLER_NOZZLE_CLOG
+
+**Confidence:** Medium (3/5 sensors confirm)
+
+**Evidence:**
+- **Fill volume:** 472 mL — 23 mL under the 495 mL target, trending down over the last 40 cycles.
+- **Cycle time:** 1.9 s vs 1.6 s baseline — flow restriction extends each fill.
+- **Valve current:** 0.9 A, nominal — the valve actuates normally, ruling out a coil fault.
+- **Reject rate:** 4.1% — low-fill bottles rising at the checkweigher.
+
+**Root Cause:**
+Partial obstruction in the nozzle orifice, consistent with sugar/pulp residue buildup or a degraded screen. Volume drops while valve current stays normal, pointing to a downstream flow restriction rather than an actuation fault.
+
+**Action:**
+Schedule CIP cycle and inspect/replace the affected nozzle screen at the next changeover. Resolve **within 2 weeks** before underfill rejects exceed spec.
+
+**Parts (if applicable):**
+Nozzle filter screen, 80-mesh SS316 — Part No. FN-80SS-12.
+
+**Cost of Inaction:**
+Escalating underfill rejects and giveaway risk; left unaddressed, a full clog forces a line stop and ~**4 hours downtime** for teardown.`,
+  filler_pump_pressure_loss: `## Diagnosis: FILLER_PUMP_PRESSURE_LOSS
+
+**Confidence:** High (4/5 sensors confirm)
+
+**Evidence:**
+- **Pump pressure:** 1.8 bar vs 2.6 bar setpoint — 31% below threshold and falling.
+- **Fill volume:** 451 mL — systemic underfill across all 12 heads, not isolated.
+- **Cycle time:** 2.3 s, extended as the pump struggles to reach fill volume.
+- **Valve current:** 0.95 A, normal — valves healthy, fault is upstream at the pump.
+
+**Root Cause:**
+Loss of positive displacement at the supply pump — most likely worn rotor lobes or a failing mechanical seal causing internal bypass and air ingress. The fleet-wide pressure drop with healthy valves isolates the fault to the pump head, not the manifold.
+
+**Action:**
+Stop the filler and isolate the pump. Replace the seal kit and inspect rotor clearances. Repair **within 8 hours** to avoid scrapping product across the full line.
+
+**Parts (if applicable):**
+Rotary lobe pump mechanical seal kit — Part No. RLP-SK-204.
+
+**Cost of Inaction:**
+Continued underfill scrap and possible pump seizure with product contamination; a hard failure causes an unplanned **6-8 hours downtime** and emergency parts freight.`,
+  capper_over_torque: `## Diagnosis: CAPPER_OVER_TORQUE
+
+**Confidence:** High (4/5 sensors confirm)
+
+**Evidence:**
+- **Cap torque:** 2.9 Nm vs 2.2 Nm spec — 32% over the application limit.
+- **Reject rate:** 5.6% — cracked caps and stripped threads flagged at vision inspection.
+- **Cycle time:** 1.5 s, nominal — speed is fine; the clutch is over-applying force.
+- **Chuck pressure:** 0.4 bar high — regulator has crept upward.
+
+**Root Cause:**
+The magnetic/spring clutch on the capping head is set or drifting too high, or the chuck regulator has crept upward. Excess seating torque cracks closures and strips bottle finishes, producing the spike in vision rejects.
+
+**Action:**
+Recalibrate the clutch to 2.0-2.2 Nm and verify chuck regulator setpoint. Correct **within 24 hours** before cracked-cap leakers ship.
+
+**Parts (if applicable):**
+Capping head clutch spring/insert kit — Part No. CH-CLK-37.
+
+**Cost of Inaction:**
+Leaking closures, customer complaints, and possible recall exposure; a seized over-torqued head forces a station swap and ~**3 hours downtime**.`,
+  capper_cap_misfeed: `## Diagnosis: CAPPER_CAP_MISFEED
+
+**Confidence:** Medium (3/5 sensors confirm)
+
+**Evidence:**
+- **Reject rate:** 7.4% vs 3.0% threshold — missing/cocked caps dominating rejects.
+- **Cap torque:** 0.0 Nm on affected cycles — no cap present to seat.
+- **Cycle time:** intermittent 2.1 s stalls as the sorter clears jams.
+- **Sorter air pressure:** dropping during high-throughput bursts.
+
+**Root Cause:**
+Cap sorter/chute starvation or jamming — worn chute guides or a misadjusted escapement let caps tip or double-feed, so the head finds no cap to apply. Intermittent stalls and zero-torque cycles confirm a feed-path issue, not a torque fault.
+
+**Action:**
+Inspect and clean the chute, adjust the escapement, and replace worn delivery rails. Address **within 1 week** before reject rate disrupts line OEE.
+
+**Parts (if applicable):**
+Cap chute delivery rail set, UHMW — Part No. CC-RAIL-19.
+
+**Cost of Inaction:**
+Mounting uncapped/cocked-cap rejects and micro-stops eroding throughput; a hard jam can halt the capper for ~**2 hours downtime** while the bowl is cleared.`
+};
+FAULT_TYPES.push(...CONVEYOR_FAULTS, ...BOTTLING_FAULTS);
+Object.assign(FAULT_DIAGNOSES, CONVEYOR_DIAGNOSES, BOTTLING_DIAGNOSES);
 // Use the rich diagnosis everywhere a fault references one (panel + ticket).
 FAULT_TYPES.forEach(ft => { if (FAULT_DIAGNOSES[ft.id]) ft.diagnosis = FAULT_DIAGNOSES[ft.id]; });
 
@@ -667,8 +864,8 @@ const mkCyl = (r, h, s, m) => new THREE.LineSegments(new THREE.EdgesGeometry(new
 
 // Shared materials
 const M = {
-  edge: lm(0x4ee5ff, 0.9), dim: lm(0x1f6478, 0.55),
-  bstruct: lm(0x4ee5ff, 0.8),   // building scaffold — brighter than dim so the homepage reads crisp, not grey
+  edge: lm(0x4ee5ff, 1.0), dim: lm(0x1f6478, 0.55),
+  bstruct: lm(0x6cefff, 0.95),   // building scaffold — bright so the homepage reads crisp, not grey
   f1: lm(0xa8ff5e), f2: lm(0x5ec8ff), f3: lm(0xffb84e), f4: lm(0xff5ec8),
   f1d: lm(0xa8ff5e, 0.4), f2d: lm(0x5ec8ff, 0.4), f3d: lm(0xffb84e, 0.4), f4d: lm(0xff5ec8, 0.4),
   bot: lm(0xffb84e), part: lm(0xff5ec8), spark: lm(0xfff5a8),
@@ -1246,7 +1443,7 @@ buildBuilding();
 // shared neutral material so the building overview stays calm/"basic" — status
 // colors (amber/red) live in the floor views and the hover dashboard, not here.
 const FLOOR_MINI_SCALE = 0.36;
-const miniMat = lm(0x4ee5ff, 0.92);
+const miniMat = lm(0x6cefff, 1.0);
 function buildFloorMiniatures() {
   const LH = 3, FH = 5;
   LAYOUT.floors.forEach((floor, fi) => {
@@ -1551,6 +1748,8 @@ function renderPanel() {
       <div class="panel-section"><div class="panel-section-title">UTILIZATION · LAST ${HISTORY_LEN}</div>
         <div class="panel-spark">${sparkline(state.history[machine.id], 'u', col)}<div class="panel-spark-l"><span>util</span><span>${((t.utilization || 0) * 100).toFixed(0)}%</span></div></div>
       </div>
+      ${(t.alarms && t.alarms.length) ? `<div class="panel-section"><div class="panel-section-title">ALARMS</div>${t.alarms.slice(0, 4).map(a => { const c = SEVERITY_COLORS[a.severity] || '#5ec8ff'; return `<div class="alarm-row" style="border-color:${c};color:${c}"><span class="sev">${a.severity}</span><span class="amsg">${a.metric} · ${a.value} <span style="opacity:.5">(thr ${a.threshold})</span></span></div>`; }).join('')}</div>` : ''}
+      ${(t.diagnosis && t.diagnosis.diagnosis) ? `<div class="panel-section"><div class="panel-section-title">AI DIAGNOSIS</div>${renderDiagnosis(parseDiagnosis(t.diagnosis.diagnosis))}</div>` : ''}
       <div class="panel-section"><div class="panel-section-title">EVENT LOG</div><div class="panel-log">${logHtml}</div></div>
       <div class="panel-section"><div class="panel-section-title">CONTROLS</div>
         <div class="panel-ctrls">
@@ -1579,7 +1778,7 @@ window.resolveTicket = resolveTicket;
 // =============================================================================
 
 const camConfigs = {
-  building: { r: 95, lookY: 11, lookX: 0, lookZ: 0, yaw: 0.18, pitch: 0.08 },
+  building: { r: 84, lookY: 11, lookX: 0, lookZ: 0, yaw: 0.18, pitch: 0.08 },
   floor1:   { r: 50, lookY: 1, lookX: 5, lookZ: 0, yaw: 0.8, pitch: 0.55 },
   floor2:   { r: 35, lookY: 2, lookX: 0, lookZ: 0, yaw: 0.7, pitch: 0.45 },
   floor3:   { r: 45, lookY: 2.5, lookX: 0, lookZ: 0, yaw: 0.9, pitch: 0.42 },
@@ -1604,6 +1803,7 @@ function showView(name) {
   const cfg = camConfigs[name]; yaw = cfg.yaw; pitch = cfg.pitch; radius = cfg.r; auto = 0; lastT = performance.now();
   document.getElementById('backBtn').style.display = (name === 'building') ? 'none' : 'block';
   document.getElementById('hint').style.display = (name === 'building') ? 'block' : 'none';
+  document.getElementById('hero').style.display = (name === 'building') ? 'block' : 'none';
   setSelected(null);
   updateHud();
   rebuildBadges();
@@ -1765,7 +1965,8 @@ function setFaultTarget(id) {
 function injectFault(machineId, faultId, jointId) {
   const ft = FAULT_TYPES.find(f => f.id === faultId);
   if (!ft) return;
-  const joint = jointId || _faultJoint || 3;
+  const isArm = !!(state.telemetry[machineId] && state.telemetry[machineId].joints);
+  const joint = isArm ? (jointId || _faultJoint || 3) : null;   // non-arm machines have no joint
   activeFaults[machineId] = { ft, joint, started: simNow(), confidence: +(0.82 + Math.random() * 0.12).toFixed(2) };
   createTicket(machineId, ft, joint);
   emit();
@@ -1774,21 +1975,25 @@ function clearFault(machineId) {
   if (!activeFaults[machineId]) return;
   delete activeFaults[machineId];
   resolveTicket(machineId);
-  // Snap telemetry back to nominal so status/alarms recover immediately
-  updateTelemetry(machineId, { alarms: [], prediction: null, diagnosis: null });
+  // Snap telemetry back to nominal so status/alarms recover immediately (sim/live then take over)
+  updateTelemetry(machineId, { alarms: [], prediction: null, diagnosis: null, status: 'running', health_score: 100 });
   emit();
 }
 
 // ---- Jira-style maintenance tickets ----
 function createTicket(machineId, ft, joint) {
   const tel = state.telemetry[machineId] || {};
+  const isArm = !!tel.joints;
   const th = THRESHOLDS[ft.metric] || {};
   const floor = LAYOUT.floors.find(f => f.machines.some(m => m.id === machineId));
   const tk = {
     key: 'ROBO-' + (++_ticketSeq),
     machineId, joint, status: 'To Do', priority: ft.priority, severity: ft.severity,
-    metric: ft.metric, value: ft.target, threshold: th.critical ?? th.warning,
-    summary: `${machineId} · Joint ${joint} — ${ft.label}`,
+    metric: isArm ? ft.metric : ft.signal,
+    value: isArm ? ft.target : ft.value,
+    threshold: isArm ? (th.critical ?? th.warning) : ft.threshold,
+    unit: isArm ? (th.unit || '') : (ft.unit || ''),
+    summary: (isArm && joint) ? `${machineId} · Joint ${joint} — ${ft.label}` : `${machineId} — ${ft.label}`,
     diagnosis: ft.diagnosis, vendor: (tel.vendor || '').toUpperCase(),
     floor: floor ? floor.name : '', created: Date.now()
   };
@@ -1806,7 +2011,7 @@ const mqEl = document.getElementById('mqueue');
 const mqColsEl = document.getElementById('mqCols');
 const mqBadgeEl = document.getElementById('mqBadge');
 function ticketCard(tk) {
-  const det = `${tk.metric} ${(+tk.value).toFixed(1)}${THRESHOLDS[tk.metric] ? ' ' + THRESHOLDS[tk.metric].unit : ''} <span style="opacity:.5">(thr ${tk.threshold})</span>`;
+  const det = `${tk.metric} ${(+tk.value).toFixed(1)}${tk.unit ? ' ' + tk.unit : ''} <span style="opacity:.5">(thr ${tk.threshold})</span>`;
   const labels = [tk.vendor, tk.floor, `J${tk.joint}`].filter(Boolean).map(l => `<span class="mq-lbl">${l}</span>`).join('');
   return `<div class="mq-card${tk.status === 'Done' ? ' done' : ''}" onclick="openTicket('${tk.key}')">
     <div class="mq-row" style="justify-content:space-between"><span class="k">${tk.key}</span><span class="mq-pri mq-pri-${tk.priority}">${tk.priority}</span></div>
@@ -1873,7 +2078,7 @@ const mqModalEl = document.getElementById('mq-modal');
 const mqmCardEl = document.getElementById('mqmCard');
 function openTicket(key) {
   const tk = state.tickets.find(t => t.key === key); if (!tk) return;
-  const unit = THRESHOLDS[tk.metric] ? ' ' + THRESHOLDS[tk.metric].unit : '';
+  const unit = tk.unit ? ' ' + tk.unit : '';
   const f = (l, v) => `<div class="mqm-f"><div class="l">${l}</div><div class="v">${v}</div></div>`;
   mqmCardEl.innerHTML = `
     <div class="mqm-top"><span class="mqm-key">${tk.key}</span><span class="mq-pri mq-pri-${tk.priority}">${tk.priority}</span><button class="mqm-close" onclick="closeTicket()">×</button></div>
@@ -1971,6 +2176,25 @@ function simArm(id, t) {
 // drift for a believable floor; never random faults (faults are injected deliberately).
 function simMachine(id, t) {
   const tel = state.telemetry[id];
+  const af = activeFaults[id];
+  if (af) {
+    // Injected fault on a non-arm machine: degrade status, raise a machine-level alarm,
+    // attach the AI diagnosis. Held until cleared. (No joints, so signal-based.)
+    const ft = af.ft, crit = ft.severity === 'critical';
+    updateTelemetry(id, {
+      status: crit ? 'error' : 'maintenance',
+      health_score: crit ? 26 : 61,
+      utilization: crit ? 0.05 : 0.42,
+      alarms: [{
+        alarm_id: 'ALM-' + String(af.alarmSeq || (af.alarmSeq = ++_alarmSeq)).padStart(4, '0'),
+        robot_id: id, joint_id: null, metric: ft.signal, severity: ft.severity,
+        message: `${id}: ${ft.label} — ${ft.signal} ${ft.value}${ft.unit} (thr ${ft.threshold})`,
+        value: ft.value, threshold: ft.threshold, resolved: false
+      }],
+      diagnosis: { robot_id: id, diagnosis: ft.diagnosis, model: 'RoboLink AI' }
+    });
+    return;
+  }
   if (Math.random() < 0.015) updateTelemetry(id, { status: tel.status === 'running' ? 'idle' : 'running' });
   if (state.telemetry[id].status === 'running') {
     updateTelemetry(id, {
@@ -1994,9 +2218,10 @@ function startMock() {
   _mockTimer = setInterval(() => {
     const t = (performance.now() - _t0) / 1000;
     Object.keys(state.telemetry).forEach(id => {
-      if (activeFaults[id]) { simArm(id, t); return; }       // injected fault overrides everything
-      if (_live && LIVE_MACHINES.has(id)) return;            // live backend drives this arm
-      if (state.telemetry[id].joints) simArm(id, t); else simMachine(id, t);
+      const isArm = !!state.telemetry[id].joints;
+      // Live backend drives mapped arms — unless they have an injected fault (mock overrides).
+      if (!activeFaults[id] && _live && LIVE_MACHINES.has(id)) return;
+      isArm ? simArm(id, t) : simMachine(id, t);   // each sim fn applies its own active fault
     });
   }, 1000);
 }
@@ -2079,6 +2304,9 @@ function startSimulator() {              // name kept so BOOT (Section 15) is un
 // =============================================================================
 
 subscribe(() => { updateBadgeContents(); updateMachineColors(); renderPanel(); updateHud(); updateFloorDash(); renderFaultCtrl(); });
+
+// Hero facility title sourced from LAYOUT (one source of truth; edit LAYOUT.facility to rebrand)
+document.querySelector('#hero .hero-title').textContent = (LAYOUT.facility || 'Facility').replace(/-/g, ' ');
 
 // Maintenance Queue board toggle
 document.getElementById('mqToggle').addEventListener('click', () => mqEl.classList.toggle('open'));
