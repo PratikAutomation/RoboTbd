@@ -1538,7 +1538,18 @@ function stopMock() { if (_mockTimer) { clearInterval(_mockTimer); _mockTimer = 
 // ---- Live RoboLink WebSocket client ----
 // The 3 backend robots (Robot1..3) map onto 3 arm machines in our LAYOUT.
 const ROBOT_MAP = { Robot1: 'ARM-01', Robot2: 'ARM-02', Robot3: 'ARM-03' };
-const RL_WS_URL = `ws://${location.hostname || 'localhost'}:8000/ws`;
+// WebSocket endpoint, resolved in priority order:
+//   1. ?ws=wss://host/ws  query param   — point a hosted frontend at any backend, no rebuild
+//   2. window.ROBOLINK_WS_URL           — set via an inline <script> before this file
+//   3. https pages → wss://<same-host>/ws  — works if the backend is co-hosted/proxied;
+//        otherwise fails gracefully and the mock takes over (no mixed-content error)
+//   4. http pages  → ws://<host>:8000/ws   — local dev default (sim_server + uvicorn)
+const RL_WS_URL =
+  new URLSearchParams(location.search).get('ws')
+  || window.ROBOLINK_WS_URL
+  || (location.protocol === 'https:'
+        ? `wss://${location.host}/ws`
+        : `ws://${location.hostname || 'localhost'}:8000/ws`);
 const _diagByRobot = {};   // robot_id -> latest AI diagnosis
 
 function statusFromHealth(h, raw) {
