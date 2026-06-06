@@ -19,7 +19,7 @@ from openai import AsyncOpenAI
 log = structlog.get_logger()
 
 # Qwen API config
-QWEN_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
+QWEN_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
 QWEN_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 QWEN_MODEL = "qwen-plus"  # 3s response, good quality. Use qwen3.7-max for batch/offline.
 
@@ -287,7 +287,12 @@ class DiagnosticEngine:
     """AI-powered diagnostic engine using Qwen for robot failure analysis."""
 
     def __init__(self, api_key: str = QWEN_API_KEY, model: str = QWEN_MODEL) -> None:
-        self._client = AsyncOpenAI(api_key=api_key, base_url=QWEN_BASE_URL)
+        self._api_key = api_key
+        self._client: AsyncOpenAI | None = None
+        if api_key:
+            self._client = AsyncOpenAI(api_key=api_key, base_url=QWEN_BASE_URL)
+        else:
+            log.warning("diagnosis.no_api_key", msg="DASHSCOPE_API_KEY not set, AI diagnosis disabled")
         self._model = model
         self._history: list[Diagnosis] = []
 
@@ -303,6 +308,13 @@ class DiagnosticEngine:
     ) -> Diagnosis:
         """Generate AI diagnosis from sensor context and vendor knowledge."""
         start = time.time()
+
+        if not self._client:
+            return Diagnosis(
+                robot_id=robot_id, joint_id=joint_id, alarm_id="",
+                diagnosis_text="AI diagnosis unavailable (API key not configured)",
+                model_used="none", tokens_used=0, latency_ms=0,
+            )
 
         # Build context-aware prompt
         vendor_kb = VENDOR_KNOWLEDGE.get(vendor, "No vendor-specific data available.")
