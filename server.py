@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from robolink.alarms import AlarmEngine
+from robolink.diagnosis import DiagnosticEngine
 from robolink.formatter import ObservationFormatter
 from robolink.monitor import RobotHealthMonitor
 from robolink.prediction import PredictionEngine
@@ -32,6 +33,10 @@ monitor = RobotHealthMonitor()
 alarms = AlarmEngine()
 predictions = PredictionEngine()
 formatter = ObservationFormatter()
+diagnostics = DiagnosticEngine()
+
+# Latest diagnosis for WebSocket broadcast
+latest_diagnosis: dict | None = None
 
 # WebSocket clients
 ws_clients: set[WebSocket] = set()
@@ -120,8 +125,75 @@ class _OPCUAHandler:
         monitor.update_status(robot_id, "running")
 
         if metric in ("temperature", "torque", "vibration", "current"):
-            alarms.evaluate(robot_id, joint_id, metric, float(val))
+            new_alarms = alarms.evaluate(robot_id, joint_id, metric, float(val))
             predictions.add_sample(robot_id, joint_id, metric, float(val))
+
+            # Trigger AI diagnosis on new alarms
+            for alarm in new_alarms:
+                if alarm.severity in ("warning", "critical"):
+                    asyncio.create_task(_run_diagnosis(robot_id, joint_id, alarm))
+
+
+async def _run_diagnosis(robot_id: str, joint_id: int, alarm) -> None:
+    """Run AI diagnosis in background when alarm fires."""
+    global latest_diagnosis
+    config = ROBOTS.get(robot_id, {})
+    state = monitor.get_state(robot_id)
+    if not state:
+        return
+
+    # Gather all joint data for context
+    joint = state.joints.get(joint_id)
+    if not joint:
+        return
+
+    joint_data = {
+        "temperature": f"{joint.temperature:.1f}°C",
+        "vibration": f"{joint.vibration:.1f} mm/s",
+        "torque": f"{joint.torque:.1f} Nm",
+        "current": f"{joint.current:.1f} A",
+        "position": f"{joint.position:.3f} rad",
+        "velocity": f"{joint.velocity:.3f} rad/s",
+    }
+
+    all_joints = {
+        jid: {"temperature": j.temperature, "vibration": j.vibration}
+        for jid, j in state.joints.items()
+    }
+
+    diagnosis = await diagnostics.diagnose(
+        robot_id=robot_id,
+        vendor=config.get("vendor", "unknown"),
+        model_name=config.get("model", "unknown"),
+        joint_id=joint_id,
+        alarm_message=alarm.message,
+        joint_data=joint_data,
+        all_joints_data=all_joints,
+    )
+
+    latest_diagnosis = {
+        "robot_id": robot_id,
+        "joint_id": joint_id,
+        "alarm_id": alarm.alarm_id,
+        "diagnosis": diagnosis.diagnosis_text,
+        "model": diagnosis.model_used,
+        "tokens": diagnosis.tokens_used,
+        "latency_ms": diagnosis.latency_ms,
+        "timestamp": diagnosis.timestamp,
+    }
+
+    # Broadcast diagnosis immediately
+    if ws_clients:
+        payload = json.dumps({"type": "diagnosis", **latest_diagnosis})
+        dead: set[WebSocket] = set()
+        for ws in ws_clients:
+            try:
+                await ws.send_text(payload)
+            except Exception:
+                dead.add(ws)
+        ws_clients -= dead
+
+    log.info("diagnosis.broadcast", robot_id=robot_id, joint=joint_id)
 
 
 async def ws_broadcaster() -> None:
@@ -133,6 +205,7 @@ async def ws_broadcaster() -> None:
                 "robots": monitor.to_dict(),
                 "alarms": alarms.to_list(),
                 "predictions": predictions.to_list(),
+                "diagnosis": latest_diagnosis,
                 "timestamp": time.time(),
             })
             dead: set[WebSocket] = set()
@@ -214,6 +287,18 @@ async def get_alarm_history() -> list:
 async def get_predictions() -> list:
     """Get failure predictions."""
     return predictions.to_list()
+
+
+@app.get("/api/diagnosis")
+async def get_diagnosis() -> dict:
+    """Get latest AI diagnosis."""
+    return latest_diagnosis or {}
+
+
+@app.get("/api/diagnosis/history")
+async def get_diagnosis_history() -> list:
+    """Get diagnosis history."""
+    return diagnostics.get_history()
 
 
 @app.get("/api/health")
