@@ -16,7 +16,8 @@
 
   /* HUD corners */
   .hud { position:fixed; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; pointer-events:none; transition: opacity 0.3s; }
-  .tl{top:60px;left:16px;} .tr{top:16px;right:16px;text-align:right;}
+  .tl{top:80px;left:16px;} .tr{top:16px;right:16px;text-align:right;}
+  .brand-logo { position:fixed; top:14px; left:18px; height:54px; width:auto; z-index:12; pointer-events:none; }
   .bl{bottom:16px;left:16px;} .br{bottom:16px;right:16px;text-align:right;}
   .hud .v{color:var(--edge);} .hud .f1{color:var(--f1);} .hud .f2{color:var(--f2);} .hud .f3{color:var(--f3);} .hud .f4{color:var(--f4);}
   .hud .label{opacity:0.5;display:block;font-size:9px;margin-bottom:3px;} .hud .row{margin-top:8px;}
@@ -29,7 +30,7 @@
 
   /* Back button & hint */
   .back-btn {
-    position: fixed; top: 16px; left: 16px;
+    position: fixed; top: 16px; left: 78px;
     background: rgba(78,229,255,0.12); color: var(--edge); border: 1px solid var(--edge);
     padding: 10px 14px; font: inherit; font-size: 10px; letter-spacing: 0.2em;
     text-transform: uppercase; cursor: pointer; display: none; z-index: 10;
@@ -160,11 +161,120 @@
   #floor-dash .fd-ttl { font-size:9px; letter-spacing:0.22em; opacity:0.45; margin-top:12px; text-transform:uppercase; }
   #floor-dash .fd-alert { margin-top:4px; text-transform:uppercase; letter-spacing:0.08em; }
   #floor-dash .fd-nominal { opacity:0.45; }
+
+  /* Panel: fault simulation controls (buttons, so per-tick panel re-renders don't break them) */
+  .fault-joints { display:flex; gap:5px; margin-bottom:10px; }
+  .fault-joints button { flex:1; background:transparent; border:1px solid rgba(78,229,255,0.25);
+    color:#8aa3ad; padding:6px 0; font:inherit; font-size:10px; cursor:pointer; }
+  .fault-joints button.on { border-color:#4ee5ff; color:#4ee5ff; background:rgba(78,229,255,0.12); }
+  .fault-list { display:flex; flex-direction:column; gap:7px; }
+  .fbtn { text-align:left; background:transparent; border:1px solid rgba(255,94,94,0.4); color:#ff9b8a;
+    padding:9px 11px; font:inherit; font-size:11px; cursor:pointer; letter-spacing:0.04em; }
+  .fbtn:hover { background:rgba(255,94,94,0.12); }
+  .fbtn-warning { border-color:rgba(255,184,78,0.4); color:#ffc06a; }
+  .fbtn-warning:hover { background:rgba(255,184,78,0.12); }
+  .fault-active { color:#ff7a6b; font-size:11px; margin-bottom:10px; letter-spacing:0.05em; }
+  .panel-ctrls button.fault-clear { border-color:#4ee5ff; color:#4ee5ff; grid-column:1/-1; }
+
+  /* Maintenance Queue — Jira-style board (bottom drawer) */
+  .mq-toggle { position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:24;
+    background:rgba(24,104,219,0.16); border:1px solid #1868db; color:#5dade2;
+    padding:9px 14px; font:inherit; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; cursor:pointer; }
+  .mq-toggle:hover { background:rgba(24,104,219,0.32); }
+  .mq-badge { background:#ff5e5e; color:#fff; border-radius:9px; padding:1px 6px; font-size:9px; margin-left:6px; }
+  #mqueue { position:fixed; left:0; right:0; bottom:0; z-index:25; height:min(48vh,440px);
+    background:rgba(8,12,20,0.975); border-top:2px solid #1868db; transform:translateY(100%);
+    transition:transform 0.28s; backdrop-filter:blur(8px); display:flex; flex-direction:column; }
+  #mqueue.open { transform:none; }
+  .mq-head { display:flex; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid #1e3050; }
+  .mq-title { color:#4ea1ff; font-size:13px; letter-spacing:0.18em; text-transform:uppercase; }
+  .mq-jira { background:#1868db; color:#fff; font-size:9px; padding:2px 7px; border-radius:3px; letter-spacing:0.1em; font-weight:700; }
+  .mq-close { width:28px; height:28px; background:transparent; border:1px solid #2a4a6a; color:#7fa0c0; font-size:16px; cursor:pointer; font-family:inherit; }
+  .mq-cols { display:flex; gap:14px; padding:14px 18px; overflow:auto; flex:1; }
+  .mq-col { flex:1 1 0; min-width:210px; display:flex; flex-direction:column; }
+  .mq-col-h { font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#8aa0b8;
+    margin-bottom:10px; display:flex; justify-content:space-between; border-bottom:1px solid #1e3050; padding-bottom:6px; }
+  .mq-card { background:#0e1726; border:1px solid #1e3050; border-left:3px solid #4ea1ff; border-radius:6px;
+    padding:11px 12px; margin-bottom:10px; }
+  .mq-card.done { opacity:0.55; border-left-color:#3fae6a; }
+  .mq-card .k { font-size:10px; color:#5dade2; letter-spacing:0.08em; font-variant-numeric:tabular-nums; }
+  .mq-card .s { font-size:12px; color:#dfe6ea; margin:5px 0 8px; line-height:1.35; }
+  .mq-card .d { font-size:10px; color:#90a4b8; line-height:1.45; margin:6px 0; max-height:48px; overflow:hidden; }
+  .mq-card .det { font-size:10px; color:#aebccf; font-variant-numeric:tabular-nums; margin-bottom:6px; }
+  .mq-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .mq-pri { font-size:9px; padding:2px 7px; border-radius:3px; text-transform:uppercase; letter-spacing:0.06em; font-weight:700; }
+  .mq-pri-Critical { background:#641e16; color:#ff8170; } .mq-pri-High { background:#5c4112; color:#ffb84e; } .mq-pri-Medium { background:#16415f; color:#5dade2; }
+  .mq-lbl { font-size:9px; background:#1a2840; color:#8fa6c4; padding:2px 6px; border-radius:3px; }
+  .mq-meta { font-size:9px; color:#5e7693; margin-top:8px; letter-spacing:0.04em; }
+  .mq-empty { font-size:10px; color:#465a72; padding:10px 0; }
+  .mq-card { cursor:pointer; transition:border-color 0.15s; }
+  .mq-card:hover { border-color:#4ea1ff; }
+
+  /* Top-left fault control: a collapsible "Fault Simulation" button + body (floor view) */
+  #fault-ctrl { position:fixed; top:128px; left:16px; width:230px; z-index:11; display:none; }
+  .fc-toggle { width:100%; display:flex; align-items:center; gap:6px; background:rgba(255,94,94,0.14);
+    border:1px solid rgba(255,94,94,0.5); color:#ff9b8a; padding:9px 12px; font:inherit; font-size:10px;
+    letter-spacing:0.16em; text-transform:uppercase; cursor:pointer; text-align:left; }
+  .fc-toggle:hover { background:rgba(255,94,94,0.24); }
+  .fc-toggle.open { border-bottom-color:transparent; }
+  .fc-caret { margin-left:auto; }
+  .fc-count { background:#ff5e5e; color:#fff; border-radius:8px; padding:0 6px; font-size:9px; }
+  .fc-body { background:rgba(6,10,16,0.94); border:1px solid rgba(255,94,94,0.5); border-top:none; padding:12px 13px; }
+  #fault-ctrl .fc-l { font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:#6f8794; margin:4px 0 6px; }
+  #fault-ctrl .fault-targets { display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; }
+  #fault-ctrl .ftgt { flex:1 1 60px; background:transparent; border:1px solid rgba(78,229,255,0.25);
+    color:#8aa3ad; padding:6px 4px; font:inherit; font-size:9px; cursor:pointer; white-space:nowrap; }
+  #fault-ctrl .ftgt.on { border-color:#4ee5ff; color:#4ee5ff; background:rgba(78,229,255,0.12); }
+  #fault-ctrl .fault-clear { width:100%; background:transparent; border:1px solid #4ee5ff; color:#4ee5ff;
+    padding:8px 10px; font:inherit; font-size:10px; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; }
+  #fault-ctrl .fault-clear:hover { background:rgba(78,229,255,0.12); }
+
+  /* Ticket detail modal */
+  #mq-modal { position:fixed; inset:0; z-index:30; display:none; align-items:center; justify-content:center;
+    background:rgba(2,5,10,0.62); backdrop-filter:blur(3px); }
+  #mq-modal.open { display:flex; }
+  .mqm-card { width:min(560px,92vw); max-height:86vh; overflow:auto; background:#0c1422;
+    border:1px solid #1e3050; border-top:3px solid #1868db; border-radius:8px; padding:22px 24px; }
+  .mqm-top { display:flex; align-items:center; gap:10px; }
+  .mqm-key { color:#5dade2; font-size:12px; letter-spacing:0.08em; font-variant-numeric:tabular-nums; }
+  .mqm-close { margin-left:auto; width:30px; height:30px; background:transparent; border:1px solid #2a4a6a; color:#7fa0c0; font-size:16px; cursor:pointer; font-family:inherit; }
+  .mqm-summary { color:#fff; font-size:17px; margin:13px 0 5px; line-height:1.3; }
+  .mqm-status { font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#8aa0b8; }
+  .mqm-sec { font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:#5e7693; margin:18px 0 8px; }
+  .mqm-desc { font-size:12px; color:#cdd8e2; line-height:1.6; white-space:pre-wrap; }
+  .mqm-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .mqm-f { border:1px solid #1a2840; border-radius:5px; padding:9px 11px; }
+  .mqm-f .l { font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#5e7693; }
+  .mqm-f .v { font-size:13px; color:#dfe6ea; margin-top:3px; font-variant-numeric:tabular-nums; }
+  .mqm-actions { margin-top:18px; display:flex; gap:10px; }
+  .mqm-actions button { background:transparent; border:1px solid currentColor; padding:9px 14px;
+    font:inherit; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; }
+  .mqm-resolve { color:#3fae6a; } .mqm-resolve:hover { background:rgba(63,174,106,0.12); }
+
+  /* AI diagnosis (parsed render — diag2-*) */
+  .diag2-empty { font-size:12px; color:var(--hud); padding:8px 0; }
+  .diag2-titlerow { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+  .diag2-titlerow--ticket { justify-content:flex-start; }
+  .diag2-title { font-size:13px; font-weight:700; color:#fff; line-height:1.3; }
+  .diag2-badge { flex:0 0 auto; font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    padding:2px 8px; border:1px solid currentColor; border-radius:3px; background:rgba(6,10,16,0.5); white-space:nowrap; }
+  .diag2-evidence { display:flex; flex-direction:column; gap:5px; margin-bottom:10px; }
+  .diag2-ev { display:flex; align-items:flex-start; gap:7px; font-size:11.5px; color:#c9d6db; line-height:1.4; }
+  .diag2-check { flex:0 0 auto; color:#2ecc71; font-weight:700; }
+  .diag2-root { font-size:11px; color:var(--hud); line-height:1.45; margin:0 0 10px; }
+  .diag2-action { font-size:12px; color:#e6f6fa; line-height:1.45; padding:8px 10px 8px 11px; margin-bottom:8px;
+    border-left:3px solid var(--edge); background:rgba(78,229,255,0.07); border-radius:0 3px 3px 0; }
+  .diag2-action-tag { display:block; font-size:9px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--edge); margin-bottom:4px; }
+  .diag2-parts, .diag2-cost { font-size:11px; line-height:1.5; margin-top:4px; }
+  .diag2-parts { color:#c9d6db; }
+  .diag2-cost { color:var(--maint); }
+  .diag2-k { font-weight:700; letter-spacing:0.08em; text-transform:uppercase; }
 </style>
 </head>
 <body>
 <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
 <div class="scan"></div>
+<img class="brand-logo" id="brandLogo" src="./robo-flow-logo.png" alt="Robo-Flow" />
 <button class="back-btn" id="backBtn">← BUILDING</button>
 <div class="zoom-ctrl" id="zoomCtrl">
   <button id="zoomIn" title="Zoom in">+</button>
@@ -175,9 +285,16 @@
 <div class="hud tr" id="hud-tr"></div>
 <div class="hud bl" id="hud-bl"></div>
 <div class="hud br" id="hud-br"></div>
+<div id="fault-ctrl"></div>
 <div id="badges"></div>
 <aside class="panel" id="panel" style="color:var(--edge)"></aside>
 <div id="floor-dash"></div>
+<button class="mq-toggle" id="mqToggle">▤ Maintenance Queue<span class="mq-badge" id="mqBadge" style="display:none">0</span></button>
+<div id="mqueue">
+  <div class="mq-head"><span class="mq-title">Maintenance Queue</span><span class="mq-jira">JIRA</span><span style="flex:1"></span><button class="mq-close" id="mqClose">×</button></div>
+  <div class="mq-cols" id="mqCols"></div>
+</div>
+<div id="mq-modal"><div class="mqm-card" id="mqmCard"></div></div>
 
 <script src="./three.min.js"></script>
 
@@ -320,13 +437,130 @@ const THRESHOLDS = {
 };
 const JOINT_METRICS = ['temperature', 'torque', 'vibration', 'current'];  // alarmable
 const SEVERITY_COLORS = { info: '#5ec8ff', warning: '#ffb84e', critical: '#ff5e5e' };
-// Arm machines get a real robot vendor/model + behavior (mirrors RoboLink's 3 robots).
+// Arm machines get a real robot vendor/model (mirrors RoboLink's 3 robots).
 const ROBOT_PROFILES = [
-  { vendor: 'ur',   model: 'UR10e',    behavior: 'healthy'   },
-  { vendor: 'kuka', model: 'KR-16',    behavior: 'degrading' },  // Joint 3 wears over time
-  { vendor: 'abb',  model: 'IRB-6700', behavior: 'anomaly'   }   // random spikes
+  { vendor: 'ur',   model: 'UR10e'    },
+  { vendor: 'kuka', model: 'KR-16'    },
+  { vendor: 'abb',  model: 'IRB-6700' }
 ];
 const ARM_TYPES = new Set(['robot_arm', 'welding_arm']);
+
+// Fault catalog — the "Inject fault" menu. Each fault ramps a real sensor signal past
+// its threshold, so the existing alarm/scoring logic fires automatically. Diagnosis text
+// and ticket priority are grounded in real robot failure modes. `also` ramps a second
+// metric in tandem; `jitter` adds instability (used for the anomaly fault).
+const FAULT_TYPES = [
+  { id: 'bearing_overtemp', label: 'Bearing over-temperature', machineTypes: ['robot_arm', 'welding_arm'],
+    metric: 'temperature', target: 86, ramp: 3, severity: 'critical', priority: 'Critical',
+    diagnosis: 'Sustained temperature rise on the joint bearing consistent with lubrication breakdown or bearing wear. Heat is climbing past the critical limit — risk of seizure. Recommend stopping the joint, inspecting and re-lubricating the bearing.' },
+  { id: 'collision_overcurrent', label: 'Collision / motor overcurrent', machineTypes: ['robot_arm', 'welding_arm'],
+    metric: 'current', target: 9.6, also: { torque: 138 }, ramp: 1.5, severity: 'critical', priority: 'Critical',
+    diagnosis: 'Simultaneous current and torque spike indicates a mechanical obstruction or collision — the motor is drawing fault-level current to overcome resistance. Stop immediately, clear the obstruction, and verify the drivetrain before resuming.' },
+  { id: 'mechanical_wear', label: 'Mechanical wear / imbalance', machineTypes: ['robot_arm', 'welding_arm'],
+    metric: 'vibration', target: 6.2, ramp: 4, severity: 'warning', priority: 'High',
+    diagnosis: 'Vibration is elevated and trending upward — typically gear wear, a loose mounting, or rotational imbalance. Not yet critical. Schedule maintenance and monitor for escalation toward the critical threshold.' },
+  { id: 'erratic_motion', label: 'Erratic motion (encoder anomaly)', machineTypes: ['robot_arm', 'welding_arm'],
+    metric: 'vibration', target: 5.4, jitter: true, ramp: 2, severity: 'warning', priority: 'High',
+    diagnosis: 'Irregular joint motion with high positional variance — the pattern matches recorded anomaly data from a real SO-ARM100. Likely an encoder fault or control-loop instability. Inspect the joint encoder and feedback wiring.' }
+];
+
+// Rich AI-style diagnoses (same Markdown format the live Qwen backend emits) so the mock
+// demo renders identically to live. parseDiagnosis() turns these into structured sections.
+const FAULT_DIAGNOSES = {
+  bearing_overtemp: `## Diagnosis: BEARING_OVERTEMP
+
+**Confidence:** High (4/5 sensors confirm)
+
+**Evidence:**
+- **Temperature:** 86.4°C — exceeds critical threshold (80°C) by 8%; sustained climb over the last window indicates frictional heat, not ambient.
+- **Current:** 7.8 A — above warning (7 A); motor draws extra power to overcome increased rolling resistance.
+- **Torque:** 112 Nm — above warning (100 Nm); bearing drag adds parasitic load through the joint.
+- **Vibration:** 4.6 mm/s — past warning (4 mm/s); early spalling signature on the race.
+- **Position:** nominal — no tracking error yet, isolating fault to the bearing rather than the encoder.
+
+**Root Cause:**
+Lubricant breakdown in the joint harmonic-drive output bearing. Grease starvation raises metal-to-metal friction, which compounds heat and load in a runaway loop. Left unchecked the race will gall and seize.
+
+**Action:**
+Stop the robot and allow the joint to cool. Re-lubricate or replace the bearing within **48 hours**. Do not resume production-rate cycles until temperature holds below 65°C.
+
+**Parts (if applicable):**
+Harmonic Drive Output Bearing, CSF-25-XRB (Vendor Part No. URC-HD25-2A).
+
+**Cost of Inaction:**
+Bearing seizure will cause an unplanned joint lockup and an estimated **6 hours** of **downtime** per arm, with secondary gear damage likely within **5–7 days**.`,
+
+  collision_overcurrent: `## Diagnosis: COLLISION_OVERCURRENT
+
+**Confidence:** High (5/5 sensors confirm)
+
+**Evidence:**
+- **Current:** 9.6 A — above critical (9 A); near-instantaneous spike consistent with a hard mechanical stop.
+- **Torque:** 138 Nm — above critical (130 Nm); reaction torque from impact transmitted through the joint.
+- **Vibration:** 6.8 mm/s — approaching critical (7 mm/s); shock transient at the moment of contact.
+- **Temperature:** 71°C — past warning (65°C); brief I²R heating from the current surge.
+- **Velocity/Position:** abrupt deviation from commanded path — the arm stalled against an obstruction.
+
+**Root Cause:**
+A collision event: the arm struck a fixture or workpiece outside its planned trajectory. The servo drove peak current and torque attempting to hold the commanded position against the obstruction, tripping protective limits.
+
+**Action:**
+E-stop immediately and clear the work envelope. Inspect for tool, fixture, and gear damage before re-enabling. Re-home and re-verify the program within **4 hours**; do not auto-restart.
+
+**Parts (if applicable):**
+Strain-Wave Gear Set, KR16-SW100 (Vendor Part No. KUK-SWG2-016) — replace only if backlash check fails.
+
+**Cost of Inaction:**
+Repeated overcurrent trips degrade the gearset and drive electronics, risking catastrophic gear failure with **8 hours** of **downtime** and possible scrapped parts within the same shift.`,
+
+  mechanical_wear: `## Diagnosis: MECHANICAL_WEAR
+
+**Confidence:** Medium (2/5 sensors confirm)
+
+**Evidence:**
+- **Vibration:** 6.2 mm/s — above warning (4 mm/s), below critical (7 mm/s); rising broadband signature typical of gear-tooth and bearing wear.
+- **Torque:** 104 Nm — just past warning (100 Nm); growing mechanical resistance as clearances open up.
+- **Temperature:** 58°C — within normal range; no thermal runaway, so the fault is mechanical not lubrication-driven.
+- **Current:** 6.4 A — nominal; load increase is marginal at this stage.
+- **Position:** within tolerance — tracking still good, indicating early-stage wear.
+
+**Root Cause:**
+Progressive wear in the joint reducer: increasing backlash and surface fatigue on the gear teeth raise vibration and effective load. The trend is gradual, consistent with normal end-of-life degradation rather than an acute fault.
+
+**Action:**
+Schedule a planned reducer inspection and lubrication analysis. Replace the gear unit at the next maintenance window, within **3 weeks**, before vibration reaches the critical threshold.
+
+**Parts (if applicable):**
+RV Reducer, RV-40E (Vendor Part No. ABB-RV40-6700).
+
+**Cost of Inaction:**
+Continued operation accelerates wear toward critical vibration, risking positional drift and an eventual unplanned stop of roughly **4 hours** **downtime** within **3–4 weeks**.`,
+
+  erratic_motion: `## Diagnosis: ENCODER_ANOMALY
+
+**Confidence:** Medium (3/5 sensors confirm)
+
+**Evidence:**
+- **Vibration:** 5.4 mm/s — above warning (4 mm/s); irregular, non-periodic pattern atypical of steady gear wear.
+- **Position:** intermittent tracking error — micro-jumps and overshoot suggest corrupted feedback rather than a mechanical bind.
+- **Velocity:** unstable — servo hunts and over-corrects, the hallmark of noisy or dropping encoder counts.
+- **Current:** 6.8 A — near warning (7 A); fluctuating draw as the loop fights to settle.
+- **Temperature:** 54°C — normal; rules out thermal or bearing-friction causes.
+
+**Root Cause:**
+Suspected encoder fault: intermittent signal dropout or electrical noise feeds bad position data to the servo loop, producing erratic motion and positional instability. A loose connector, degraded shielding, or a failing encoder disk is the likely source.
+
+**Action:**
+Inspect and reseat the encoder cable and shielding; run an encoder self-test. If errors persist, replace the encoder within **7 days** and keep the robot at reduced speed until resolved.
+
+**Parts (if applicable):**
+Absolute Multi-Turn Encoder, AME-17/4096 (Vendor Part No. URC-ENC1-17B).
+
+**Cost of Inaction:**
+Encoder failure mid-cycle causes a protective fault stop and loss of calibration, with about **5 hours** of **downtime** for re-homing and re-mastering, likely within **1–2 weeks**.`
+};
+// Use the rich diagnosis everywhere a fault references one (panel + ticket).
+FAULT_TYPES.forEach(ft => { if (FAULT_DIAGNOSES[ft.id]) ft.diagnosis = FAULT_DIAGNOSES[ft.id]; });
 
 // =============================================================================
 //   SECTION 3 — STATE
@@ -340,6 +574,7 @@ const state = {
   telemetry: {},   // machineId -> { status, utilization, partsProcessed, temperature, rpm, lastMaintenance, alarms }
   history: {},     // machineId -> [{ u, temp }]  ring buffer feeding the panel sparkline
   events: [],      // [{ id, from, to, t }]  global status-change log, newest first
+  tickets: [],     // [{ key, machineId, status, ... }]  Jira-style maintenance queue
   listeners: new Set()
 };
 
@@ -384,7 +619,7 @@ let _armIdx = 0;
 LAYOUT.floors.forEach(f => f.machines.forEach(m => {
   if (ARM_TYPES.has(m.type)) {
     const p = ROBOT_PROFILES[_armIdx++ % ROBOT_PROFILES.length];
-    simProfiles[m.id] = { behavior: p.behavior, seed: _armIdx * 1.7 };
+    simProfiles[m.id] = { seed: _armIdx * 1.7 };
     const joints = {};
     for (let j = 1; j <= 6; j++) joints[j] = {
       joint_id: j, position: 0, velocity: 0, torque: 30,
@@ -433,6 +668,7 @@ const mkCyl = (r, h, s, m) => new THREE.LineSegments(new THREE.EdgesGeometry(new
 // Shared materials
 const M = {
   edge: lm(0x4ee5ff, 0.9), dim: lm(0x1f6478, 0.55),
+  bstruct: lm(0x4ee5ff, 0.8),   // building scaffold — brighter than dim so the homepage reads crisp, not grey
   f1: lm(0xa8ff5e), f2: lm(0x5ec8ff), f3: lm(0xffb84e), f4: lm(0xff5ec8),
   f1d: lm(0xa8ff5e, 0.4), f2d: lm(0x5ec8ff, 0.4), f3d: lm(0xffb84e, 0.4), f4d: lm(0xff5ec8, 0.4),
   bot: lm(0xffb84e), part: lm(0xff5ec8), spark: lm(0xfff5a8),
@@ -994,6 +1230,11 @@ function buildBuilding() {
     g.add(glow); buildingHighlights[fd.id] = glow;
   });
 
+  // Brighten the building's secondary structure (everything built with M.dim — stair,
+  // interior columns, HVAC, trees, lobby mullions) so the homepage reads crisp like the
+  // floor views instead of a faint grey shape. Only affects this building group.
+  g.traverse(c => { if (c.isLineSegments && c.material === M.dim) c.material = M.bstruct; });
+
   g.visible = true;
   groups.building = g;
   scene.add(g);
@@ -1005,7 +1246,7 @@ buildBuilding();
 // shared neutral material so the building overview stays calm/"basic" — status
 // colors (amber/red) live in the floor views and the hover dashboard, not here.
 const FLOOR_MINI_SCALE = 0.36;
-const miniMat = lm(0x4ee5ff, 0.6);
+const miniMat = lm(0x4ee5ff, 0.92);
 function buildFloorMiniatures() {
   const LH = 3, FH = 5;
   LAYOUT.floors.forEach((floor, fi) => {
@@ -1171,6 +1412,54 @@ function metricSpark(hist, key) {
   </svg>`;
 }
 
+// ---- AI diagnosis: parse the Qwen Markdown into sections, then render ----
+// parseDiagnosis works on both the live backend text and our mock FAULT_DIAGNOSES.
+function parseDiagnosis(text) {
+  const empty = { code: "", title: "AI Diagnosis", confidence: "", level: "Medium", evidence: [], rootCause: "", action: "", parts: "", cost: "" };
+  if (!text || typeof text !== "string") return empty;
+  const stripBold = (s) => s.replace(/\*\*(.*?)\*\*/g, "$1").trim();
+  const section = (label) => {
+    const re = new RegExp("\\*\\*" + label + "[^*]*?:\\*\\*([\\s\\S]*?)(?=\\n\\s*\\*\\*[^*]+:\\*\\*|\\n\\s*##\\s|$)", "i");
+    return text.match(re)?.[1].trim() ?? "";
+  };
+  const code = text.match(/##\s*Diagnosis:\s*([^\n]+)/i)?.[1].trim() ?? "";
+  const title = code ? code.toLowerCase().replace(/[_\s]+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase()) : "AI Diagnosis";
+  const confidence = stripBold(section("Confidence"));
+  const level = /high/i.test(confidence) ? "High" : /low/i.test(confidence) ? "Low" : "Medium";
+  const evidence = section("Evidence").split("\n").map((l) => l.trim()).filter((l) => l.startsWith("- ")).map((l) => stripBold(l.slice(2).trim()));
+  return {
+    code, title, confidence, level, evidence,
+    rootCause: stripBold(section("Root Cause")),
+    action: stripBold(section("Action")),
+    parts: stripBold(section("Parts")),
+    cost: stripBold(section("Cost of Inaction")),
+  };
+}
+
+const DIAG_CONF_COLORS = { High: '#2ecc71', Medium: '#ffb84e', Low: '#ff5e5e' };
+function _diagConfBadge(d) {
+  const color = DIAG_CONF_COLORS[d.level] || 'var(--hud)';
+  const label = (d.confidence != null && d.confidence !== '') ? d.confidence : (d.level || '');
+  return label ? `<span class="diag2-badge" style="color:${color};border-color:${color}">${label}</span>` : '';
+}
+function _diagActionBox(d) { return d.action ? `<div class="diag2-action"><span class="diag2-action-tag">ACTION</span>${d.action}</div>` : ''; }
+function _diagPartsLine(d) { return d.parts ? `<div class="diag2-parts"><span class="diag2-k">PARTS</span> · ${d.parts}</div>` : ''; }
+function _diagCostLine(d) { return d.cost ? `<div class="diag2-cost"><span class="diag2-k">COST OF INACTION</span> · ${d.cost}</div>` : ''; }
+// Full body for the side-panel "AI DIAGNOSIS" section and the ticket modal.
+function renderDiagnosis(d) {
+  if (!d) return '<div class="diag2-empty">No diagnosis available.</div>';
+  const titleRow = `<div class="diag2-titlerow"><span class="diag2-title">${d.title || 'Diagnosis'}</span>${_diagConfBadge(d)}</div>`;
+  const evidence = (Array.isArray(d.evidence) && d.evidence.length)
+    ? `<div class="diag2-evidence">${d.evidence.map(e => `<div class="diag2-ev"><span class="diag2-check">✓</span><span>${e}</span></div>`).join('')}</div>` : '';
+  const rootCause = d.rootCause ? `<p class="diag2-root">${d.rootCause}</p>` : '';
+  return [titleRow, evidence, rootCause, _diagActionBox(d), _diagPartsLine(d), _diagCostLine(d)].filter(Boolean).join('');
+}
+// Plain-text one-liner for the small ticket card preview.
+function diagnosisTicketSummary(d) {
+  const a = (d && d.action) ? String(d.action) : '';
+  return a.length > 120 ? a.slice(0, 117).trimEnd() + '…' : a;
+}
+
 function renderPanel() {
   if (!state.selectedId) { panelEl.classList.remove('open'); return; }
   let machine = null, floor = null;
@@ -1224,7 +1513,7 @@ function renderPanel() {
     // AI diagnosis (populated by the live RoboLink feed; absent under mock data)
     const d = t.diagnosis;
     const diagHtml = d && d.diagnosis
-      ? `<div class="diag-text">${d.diagnosis}</div><div class="diag-meta">${d.model || 'AI'}${d.latency_ms ? ' · ' + Math.round(d.latency_ms) + 'ms' : ''} · Joint ${d.joint_id}</div>`
+      ? `${renderDiagnosis(parseDiagnosis(d.diagnosis))}<div class="diag-meta">${d.model || 'AI'}${d.latency_ms ? ' · ' + Math.round(d.latency_ms) + 'ms' : ''} · Joint ${d.joint_id}</div>`
       : '';
     const trends = JOINT_METRICS.map(metric => `
       <div class="metric-spark">${metricSpark(state.history[machine.id], metric)}
@@ -1276,6 +1565,14 @@ function renderPanel() {
 }
 window.setSelected = setSelected; // expose for onclick
 window.updateTelemetry = updateTelemetry;
+window.injectFault = injectFault;
+window.clearFault = clearFault;
+window.setFaultJoint = setFaultJoint;
+window.setFaultTarget = setFaultTarget;
+window.toggleFaultPanel = toggleFaultPanel;
+window.openTicket = openTicket;
+window.closeTicket = closeTicket;
+window.resolveTicket = resolveTicket;
 
 // =============================================================================
 //   SECTION 12 — VIEW MANAGEMENT
@@ -1350,7 +1647,7 @@ function handleTap(x, y) {
     if (!floor) return;
     const targets = floor.machines.map(m => machineHitboxes[m.id]).filter(Boolean);
     const hits = raycaster.intersectObjects(targets, false);
-    if (hits.length > 0) setSelected(hits[0].object.userData.machineId);
+    if (hits.length > 0) { const mid = hits[0].object.userData.machineId; setFaultTarget(mid); setSelected(mid); }
     else setSelected(null);
   }
 }
@@ -1449,6 +1746,153 @@ function pushAlarm(arr, robotId, jointId, metric, severity, value, threshold) {
   });
 }
 
+// ---- Fault simulation (mock) ----
+// activeFaults[machineId] = { ft, joint, started (sim-seconds), confidence }. The mock
+// loop reads this and ramps the bad signal; with no entry, a machine runs nominal.
+const activeFaults = {};
+let _ticketSeq = 1041;
+let _faultJoint = 3;       // joint chosen in the panel for the next injection
+let _faultTarget = null;   // machine the fault panel currently targets (resolved per floor)
+let _faultPanelOpen = false; // collapsible: starts as just the "Fault Simulation" button
+const simNow = () => (performance.now() - _t0) / 1000;
+
+function setFaultJoint(j) { _faultJoint = j; emit(); }
+function toggleFaultPanel() { _faultPanelOpen = !_faultPanelOpen; emit(); }
+function setFaultTarget(id) {
+  const m = findMachine(id);
+  if (m && FAULT_TYPES.some(ft => ft.machineTypes.includes(m.type))) { _faultTarget = id; _faultPanelOpen = true; emit(); }
+}
+function injectFault(machineId, faultId, jointId) {
+  const ft = FAULT_TYPES.find(f => f.id === faultId);
+  if (!ft) return;
+  const joint = jointId || _faultJoint || 3;
+  activeFaults[machineId] = { ft, joint, started: simNow(), confidence: +(0.82 + Math.random() * 0.12).toFixed(2) };
+  createTicket(machineId, ft, joint);
+  emit();
+}
+function clearFault(machineId) {
+  if (!activeFaults[machineId]) return;
+  delete activeFaults[machineId];
+  resolveTicket(machineId);
+  // Snap telemetry back to nominal so status/alarms recover immediately
+  updateTelemetry(machineId, { alarms: [], prediction: null, diagnosis: null });
+  emit();
+}
+
+// ---- Jira-style maintenance tickets ----
+function createTicket(machineId, ft, joint) {
+  const tel = state.telemetry[machineId] || {};
+  const th = THRESHOLDS[ft.metric] || {};
+  const floor = LAYOUT.floors.find(f => f.machines.some(m => m.id === machineId));
+  const tk = {
+    key: 'ROBO-' + (++_ticketSeq),
+    machineId, joint, status: 'To Do', priority: ft.priority, severity: ft.severity,
+    metric: ft.metric, value: ft.target, threshold: th.critical ?? th.warning,
+    summary: `${machineId} · Joint ${joint} — ${ft.label}`,
+    diagnosis: ft.diagnosis, vendor: (tel.vendor || '').toUpperCase(),
+    floor: floor ? floor.name : '', created: Date.now()
+  };
+  state.tickets.unshift(tk);
+  renderBoard();
+  // Auto-advance To Do -> In Progress, mimicking auto-assignment
+  setTimeout(() => { if (state.tickets.includes(tk) && tk.status === 'To Do') { tk.status = 'In Progress'; renderBoard(); } }, 1400);
+}
+function resolveTicket(machineId) {
+  const tk = state.tickets.find(t => t.machineId === machineId && t.status !== 'Done');
+  if (tk) { tk.status = 'Done'; tk.resolved = Date.now(); renderBoard(); }
+}
+
+const mqEl = document.getElementById('mqueue');
+const mqColsEl = document.getElementById('mqCols');
+const mqBadgeEl = document.getElementById('mqBadge');
+function ticketCard(tk) {
+  const det = `${tk.metric} ${(+tk.value).toFixed(1)}${THRESHOLDS[tk.metric] ? ' ' + THRESHOLDS[tk.metric].unit : ''} <span style="opacity:.5">(thr ${tk.threshold})</span>`;
+  const labels = [tk.vendor, tk.floor, `J${tk.joint}`].filter(Boolean).map(l => `<span class="mq-lbl">${l}</span>`).join('');
+  return `<div class="mq-card${tk.status === 'Done' ? ' done' : ''}" onclick="openTicket('${tk.key}')">
+    <div class="mq-row" style="justify-content:space-between"><span class="k">${tk.key}</span><span class="mq-pri mq-pri-${tk.priority}">${tk.priority}</span></div>
+    <div class="s">${tk.summary}</div>
+    <div class="det">${det}</div>
+    <div class="d">${diagnosisTicketSummary(parseDiagnosis(tk.diagnosis))}</div>
+    <div class="mq-row">${labels}</div>
+    <div class="mq-meta">RoboLink Auto-Detect · ${fmtTime(tk.created)}</div>
+  </div>`;
+}
+function renderBoard() {
+  if (!mqColsEl) return;
+  const cols = ['To Do', 'In Progress', 'Done'];
+  mqColsEl.innerHTML = cols.map(c => {
+    const items = state.tickets.filter(t => t.status === c);
+    const body = items.length ? items.map(ticketCard).join('') : `<div class="mq-empty">— none —</div>`;
+    return `<div class="mq-col"><div class="mq-col-h"><span>${c}</span><span>${items.length}</span></div>${body}</div>`;
+  }).join('');
+  const open = state.tickets.filter(t => t.status !== 'Done').length;
+  mqBadgeEl.style.display = open ? 'inline-block' : 'none';
+  mqBadgeEl.textContent = open;
+}
+
+// ---- Top-left fault control: always present in a floor view, no machine selection
+// needed. Pick a target machine + joint, click a fault → the machine activates in the
+// scene; then click that machine to act on it (it becomes the target → Clear / details).
+const faultCtrlEl = document.getElementById('fault-ctrl');
+function findMachine(id) {
+  for (const f of LAYOUT.floors) { const m = f.machines.find(x => x.id === id); if (m) return m; }
+  return null;
+}
+function floorFaultMachines() {
+  const floor = LAYOUT.floors.find(f => f.id === state.currentView);
+  return floor ? floor.machines.filter(m => FAULT_TYPES.some(ft => ft.machineTypes.includes(m.type))) : [];
+}
+function renderFaultCtrl() {
+  const machines = floorFaultMachines();
+  if (state.currentView === 'building' || !machines.length) { faultCtrlEl.style.display = 'none'; return; }
+  // Collapsed by default — just the toggle button (with an active-fault count badge).
+  const activeCount = machines.filter(m => activeFaults[m.id]).length;
+  const head = `<button class="fc-toggle${_faultPanelOpen ? ' open' : ''}" onclick="toggleFaultPanel()">⚠ Fault Simulation${activeCount ? ` <span class="fc-count">${activeCount}</span>` : ''}<span class="fc-caret">${_faultPanelOpen ? '▾' : '▸'}</span></button>`;
+  if (!_faultPanelOpen) { faultCtrlEl.innerHTML = head; faultCtrlEl.style.display = 'block'; return; }
+  // Expanded: resolve the target (remembered choice if still on this floor, else first machine).
+  if (!machines.some(m => m.id === _faultTarget)) _faultTarget = machines[0].id;
+  const target = _faultTarget;
+  const machine = machines.find(m => m.id === target);
+  const applicable = FAULT_TYPES.filter(f => f.machineTypes.includes(machine.type));
+  const af = activeFaults[target];
+  const targetBtns = machines.map(m =>
+    `<button class="ftgt ${m.id === target ? 'on' : ''}" onclick="setFaultTarget('${m.id}')">${activeFaults[m.id] ? '⚠ ' : ''}${m.id}</button>`).join('');
+  faultCtrlEl.innerHTML = head + `<div class="fc-body">
+    <div class="fc-l">Target machine</div>
+    <div class="fault-targets">${targetBtns}</div>` + (af
+    ? `<div class="fault-active">${af.ft.label} · Joint ${af.joint}</div>
+       <button class="fault-clear" onclick="clearFault('${target}')">✓ Clear fault</button>`
+    : `<div class="fc-l">Joint</div>
+       <div class="fault-joints">${[1,2,3,4,5,6].map(j => `<button class="${j === _faultJoint ? 'on' : ''}" onclick="setFaultJoint(${j})">J${j}</button>`).join('')}</div>
+       <div class="fault-list">${applicable.map(f => `<button class="fbtn fbtn-${f.severity}" onclick="injectFault('${target}','${f.id}')">⚠ ${f.label}</button>`).join('')}</div>`) + `</div>`;
+  faultCtrlEl.style.display = 'block';
+}
+
+// ---- Ticket detail modal (click a card in the Maintenance Queue) ----
+const mqModalEl = document.getElementById('mq-modal');
+const mqmCardEl = document.getElementById('mqmCard');
+function openTicket(key) {
+  const tk = state.tickets.find(t => t.key === key); if (!tk) return;
+  const unit = THRESHOLDS[tk.metric] ? ' ' + THRESHOLDS[tk.metric].unit : '';
+  const f = (l, v) => `<div class="mqm-f"><div class="l">${l}</div><div class="v">${v}</div></div>`;
+  mqmCardEl.innerHTML = `
+    <div class="mqm-top"><span class="mqm-key">${tk.key}</span><span class="mq-pri mq-pri-${tk.priority}">${tk.priority}</span><button class="mqm-close" onclick="closeTicket()">×</button></div>
+    <div class="mqm-summary">${tk.summary}</div>
+    <div class="mqm-status">Status · ${tk.status} &nbsp;·&nbsp; Reporter · RoboLink Auto-Detect</div>
+    <div class="mqm-sec">AI Diagnosis</div>${renderDiagnosis(parseDiagnosis(tk.diagnosis))}
+    <div class="mqm-sec">Details</div>
+    <div class="mqm-grid">
+      ${f('Asset', tk.machineId)}${f('Joint', 'J' + tk.joint)}
+      ${f('Metric', tk.metric)}${f('Reading', (+tk.value).toFixed(1) + unit + ' (thr ' + tk.threshold + ')')}
+      ${f('Vendor', tk.vendor || '—')}${f('Location', tk.floor || '—')}
+      ${f('Severity', tk.severity)}${f('Created', fmtTime(tk.created))}
+    </div>
+    ${tk.status !== 'Done' ? `<div class="mqm-actions"><button class="mqm-resolve" onclick="resolveTicket('${tk.machineId}'); clearFault('${tk.machineId}'); closeTicket()">✓ Resolve &amp; clear fault</button></div>` : ''}`;
+  mqModalEl.classList.add('open');
+}
+function closeTicket() { mqModalEl.classList.remove('open'); }
+mqModalEl.addEventListener('click', e => { if (e.target === mqModalEl) closeTicket(); });
+
 // Simulate a robot arm: per-joint sensors -> joint scores -> health -> alarms ->
 // status -> prediction. Produces telemetry in the exact RoboLink WebSocket shape.
 function simArm(id, t) {
@@ -1467,16 +1911,18 @@ function simArm(id, t) {
       error_code: 0, score: 100
     };
   }
-  if (prof.behavior === 'degrading') {
-    const wear = (Math.sin(t * 0.04 + prof.seed) + 1) / 2;   // slow 0..1 cycle on Joint 3
-    joints[3].temperature = 55 + wear * 32;   // crosses 65 warn, 80 crit
-    joints[3].vibration   = 2.5 + wear * 5.5; // crosses 4 warn, 7 crit
-    joints[3].torque      = 60 + wear * 80;   // up to 140
-  } else if (prof.behavior === 'anomaly' && Math.random() < 0.12) {
-    const k = 1 + Math.floor(Math.random() * 6);
-    joints[k].vibration = 5 + Math.random() * 3;
-    joints[k].temperature = 66 + Math.random() * 18;
-    joints[k].current = 7.5 + Math.random() * 2;
+  // Apply an injected fault by ramping its signal(s) past threshold; nominal otherwise.
+  const af = activeFaults[id];
+  if (af) {
+    const prog = Math.min(1, Math.max(0, (t - af.started) / af.ft.ramp));
+    const jt = joints[af.joint];
+    const targets = { [af.ft.metric]: af.ft.target, ...(af.ft.also || {}) };
+    for (const m in targets) {
+      const base = jt[m] ?? 0;
+      let v = base + (targets[m] - base) * prog;
+      if (af.ft.jitter) v += (Math.random() - 0.5) * targets[m] * 0.2 * prog;
+      jt[m] = v;
+    }
   }
   // Score joints + collect alarms (RoboLink: min*0.4 + avg*0.6)
   const alarms = [];
@@ -1492,26 +1938,40 @@ function simArm(id, t) {
     minScore = Math.min(minScore, jt.score); sum += jt.score;
   }
   const health_score = +(minScore * 0.4 + (sum / 6) * 0.6).toFixed(1);
-  const status = health_score < 50 ? 'error' : health_score < 80 ? 'maintenance' : 'running';
-  const safety_state = health_score < 50 ? 'protective_stop' : 'normal';
-  // Prediction: project days-to-failure for a heating degrading joint
+  // An active alarm degrades the displayed status even if aggregate health (dragged by a
+  // single bad joint) stays high: any critical alarm → error/protective-stop (as a real
+  // robot would), any warning alarm → maintenance.
+  const hasCritical = alarms.some(a => a.severity === 'critical');
+  const hasWarning = alarms.some(a => a.severity === 'warning');
+  const status = (hasCritical || health_score < 50) ? 'error'
+               : (hasWarning || health_score < 80) ? 'maintenance' : 'running';
+  const safety_state = (hasCritical || health_score < 50) ? 'protective_stop' : 'normal';
+  // Prediction: days-to-failure for the faulted joint's climbing metric.
+  // Scales from ~14 days at the warning line down to ~0.3 days at/over critical.
   let prediction = null;
-  if (prof.behavior === 'degrading' && joints[3].temperature > THRESHOLDS.temperature.warning) {
-    const cur = joints[3].temperature, crit = THRESHOLDS.temperature.critical, slope = 0.0012;
-    prediction = {
-      robot_id: id, joint_id: 3, metric: 'temperature',
-      days_to_failure: +Math.max(0.5, (crit - cur) / (slope * 12960)).toFixed(1),  // repo time-compression
-      confidence: +(0.78 + Math.random() * 0.15).toFixed(2), trend_slope: slope,
-      current_value: +cur.toFixed(1), critical_threshold: crit
-    };
+  if (af) {
+    const jt = joints[af.joint], metric = af.ft.metric, th = THRESHOLDS[metric];
+    if (th && jt[metric] > th.warning) {
+      const cur = jt[metric], crit = th.critical;
+      const span = Math.max(0.001, crit - th.warning);
+      const frac = Math.min(1, Math.max(0, (crit - cur) / span));   // 1 at warning, 0 at critical
+      prediction = {
+        robot_id: id, joint_id: af.joint, metric,
+        days_to_failure: +(0.3 + frac * 13.7).toFixed(1),
+        confidence: af.confidence, trend_slope: +(0.001 * (2 - frac)).toFixed(4),
+        current_value: +cur.toFixed(1), critical_threshold: crit
+      };
+    }
   }
-  updateTelemetry(id, { joints, alarms, health_score, status, safety_state, prediction });
+  const diagnosis = af ? { robot_id: id, joint_id: af.joint, diagnosis: af.ft.diagnosis, model: 'RoboLink AI' } : null;
+  updateTelemetry(id, { joints, alarms, health_score, status, safety_state, prediction, diagnosis });
 }
 
-// Simulate a non-arm machine: lighter telemetry, occasional status flips.
+// Simulate a non-arm machine: lighter telemetry. Ambient life only — gentle idle<->running
+// drift for a believable floor; never random faults (faults are injected deliberately).
 function simMachine(id, t) {
   const tel = state.telemetry[id];
-  if (Math.random() < 0.04) updateTelemetry(id, { status: STATUSES[Math.floor(Math.random() * STATUSES.length)] });
+  if (Math.random() < 0.015) updateTelemetry(id, { status: tel.status === 'running' ? 'idle' : 'running' });
   if (state.telemetry[id].status === 'running') {
     updateTelemetry(id, {
       partsProcessed: (tel.partsProcessed || 0) + Math.floor(1 + Math.random() * 3),
@@ -1523,32 +1983,40 @@ function simMachine(id, t) {
 
 // ---- Mock loop (fallback / offline demo) ----
 const _t0 = performance.now();
+// When the backend is connected (_live), it drives the mapped arms — EXCEPT any machine
+// with an injected fault, which the mock keeps overriding so manual fault demos work on
+// top of live data. Non-arm machines always run on mock ambiance (the backend has no data
+// for them). The loop runs continuously; it just self-selects what to update.
+let _live = false;
 let _mockTimer = null;
 function startMock() {
   if (_mockTimer) return;
   _mockTimer = setInterval(() => {
     const t = (performance.now() - _t0) / 1000;
     Object.keys(state.telemetry).forEach(id => {
+      if (activeFaults[id]) { simArm(id, t); return; }       // injected fault overrides everything
+      if (_live && LIVE_MACHINES.has(id)) return;            // live backend drives this arm
       if (state.telemetry[id].joints) simArm(id, t); else simMachine(id, t);
     });
   }, 1000);
 }
-function stopMock() { if (_mockTimer) { clearInterval(_mockTimer); _mockTimer = null; } }
 
 // ---- Live RoboLink WebSocket client ----
 // The 3 backend robots (Robot1..3) map onto 3 arm machines in our LAYOUT.
 const ROBOT_MAP = { Robot1: 'ARM-01', Robot2: 'ARM-02', Robot3: 'ARM-03' };
+const LIVE_MACHINES = new Set(Object.values(ROBOT_MAP));   // arms driven by the live backend
+// Deployed backend (Railway) — the live data source for the hosted dashboard.
+const RL_LIVE_WS = 'wss://web-production-27a5.up.railway.app/ws';
 // WebSocket endpoint, resolved in priority order:
-//   1. ?ws=wss://host/ws  query param   — point a hosted frontend at any backend, no rebuild
+//   1. ?ws=wss://host/ws  query param   — override per-visit, no rebuild
 //   2. window.ROBOLINK_WS_URL           — set via an inline <script> before this file
-//   3. https pages → wss://<same-host>/ws  — works if the backend is co-hosted/proxied;
-//        otherwise fails gracefully and the mock takes over (no mixed-content error)
+//   3. https pages → the live Railway backend (real data + AI on the hosted site)
 //   4. http pages  → ws://<host>:8000/ws   — local dev default (sim_server + uvicorn)
 const RL_WS_URL =
   new URLSearchParams(location.search).get('ws')
   || window.ROBOLINK_WS_URL
   || (location.protocol === 'https:'
-        ? `wss://${location.host}/ws`
+        ? RL_LIVE_WS
         : `ws://${location.hostname || 'localhost'}:8000/ws`);
 const _diagByRobot = {};   // robot_id -> latest AI diagnosis
 
@@ -1565,6 +2033,7 @@ function applyRoboLinkUpdate(data) {
   Object.values(data.robots || {}).forEach(r => {
     const id = ROBOT_MAP[r.robot_id];
     if (!id || !state.telemetry[id]) return;
+    if (activeFaults[id]) return;   // injected fault overrides live data for this machine
     updateTelemetry(id, {
       vendor: r.vendor, model: r.model, joints: r.joints, health_score: r.health_score,
       safety_state: r.safety_state || 'normal', status: statusFromHealth(r.health_score, r.status),
@@ -1577,27 +2046,28 @@ function applyDiagnosis(d) {
   if (!d || !d.robot_id) return;
   _diagByRobot[d.robot_id] = d;
   const id = ROBOT_MAP[d.robot_id];
-  if (id && state.telemetry[id]) updateTelemetry(id, { diagnosis: d });
+  if (id && state.telemetry[id] && !activeFaults[id]) updateTelemetry(id, { diagnosis: d });
 }
 
-// Start mock immediately for instant life; upgrade to live when the backend
-// sends data; fall back to mock if the socket drops. Reconnect with backoff.
+// The mock loop runs continuously (instant life + non-arm ambiance + fault overrides).
+// When the backend connects, _live=true and the loop yields the mapped arms to live data;
+// if the socket drops, _live=false and the mock seamlessly takes the arms back.
 function startSimulator() {              // name kept so BOOT (Section 15) is unchanged
   startMock();
-  let live = false, backoff = 1000;
+  let backoff = 1000;
   const connect = () => {
     let ws;
     try { ws = new WebSocket(RL_WS_URL); } catch (_) { return; }
     ws.onopen = () => { backoff = 1000; };
     ws.onmessage = e => {
-      if (!live) { live = true; stopMock(); console.info('RoboLink: live data connected'); }
+      if (!_live) { _live = true; console.info('RoboLink: live data connected'); }
       let data; try { data = JSON.parse(e.data); } catch (_) { return; }
       if (data.type === 'diagnosis') applyDiagnosis(data);
       else applyRoboLinkUpdate(data);
     };
     ws.onerror = () => ws.close();
     ws.onclose = () => {
-      if (live) { live = false; startMock(); }
+      _live = false;
       setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 30000);
     };
   };
@@ -1608,7 +2078,12 @@ function startSimulator() {              // name kept so BOOT (Section 15) is un
 //   SECTION 15 — BOOT
 // =============================================================================
 
-subscribe(() => { updateBadgeContents(); updateMachineColors(); renderPanel(); updateHud(); updateFloorDash(); });
+subscribe(() => { updateBadgeContents(); updateMachineColors(); renderPanel(); updateHud(); updateFloorDash(); renderFaultCtrl(); });
+
+// Maintenance Queue board toggle
+document.getElementById('mqToggle').addEventListener('click', () => mqEl.classList.toggle('open'));
+document.getElementById('mqClose').addEventListener('click', () => mqEl.classList.remove('open'));
+renderBoard();
 
 showView('building');
 startSimulator();
