@@ -24,10 +24,19 @@ const ws = new WebSocket('ws://localhost:8000/ws');
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  // data.type = "update"
-  // data.robots = { ... }
-  // data.alarms = [ ... ]
-  // data.predictions = [ ... ]
+
+  if (data.type === "update") {
+    // Regular update every 500ms
+    // data.robots = { ... }
+    // data.alarms = [ ... ]
+    // data.predictions = [ ... ]
+    // data.diagnosis = { ... } or null
+  }
+
+  if (data.type === "diagnosis") {
+    // Fired when AI diagnosis completes (~3s after alarm)
+    // data.robot_id, data.diagnosis, etc.
+  }
 };
 ```
 
@@ -118,17 +127,116 @@ ws.onmessage = (event) => {
       "critical_threshold": 85.0,
       "timestamp": 1749206400.0
     }
-  ]
+  ],
+  "diagnosis": {
+    "robot_id": "Robot2",
+    "joint_id": 3,
+    "alarm_id": "ALM-0001",
+    "diagnosis": "## Diagnosis: BEARING_WEAR\n\n**Confidence:** High (4/4 sensors confirm)\n\n**Evidence:**\n- temperature: 72.5°C — Exceeds KUKA warning >70°C\n- vibration: 5.2 mm/s — Elevated high-frequency\n- current: 5.8A — Motor compensating for friction\n- torque: 35.2 Nm — Stable (rules out load change)\n\n**Root Cause:**\nBearing degradation in Joint 3...\n\n**Action:**\nReplace bearing within 14 days.\n\n**Parts:**\nNabtesco RV reducer (€2000-8000)",
+    "model": "qwen-plus",
+    "tokens": 2049,
+    "latency_ms": 3400,
+    "timestamp": 1749206403.0
+  }
 }
 ```
+
+### Diagnosis Event (separate message, fired ~3s after alarm)
+
+When an alarm fires, the backend sends the sensor context to Qwen AI.
+~3 seconds later, a separate `"type": "diagnosis"` message arrives:
+
+```json
+{
+  "type": "diagnosis",
+  "robot_id": "Robot2",
+  "joint_id": 3,
+  "alarm_id": "ALM-0001",
+  "diagnosis": "## Diagnosis: BEARING_WEAR\n\n**Confidence:** High...",
+  "model": "qwen-plus",
+  "tokens": 2049,
+  "latency_ms": 3400,
+  "timestamp": 1749206403.0
+}
+```
+
+**How to handle in dashboard:**
+
+```javascript
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  if (data.type === "update") {
+    updateRobotCards(data.robots);
+    updateAlarms(data.alarms);
+    updatePredictions(data.predictions);
+    // diagnosis is also in regular updates (latest one)
+    if (data.diagnosis) {
+      showDiagnosis(data.diagnosis);
+    }
+  }
+
+  if (data.type === "diagnosis") {
+    // This fires ONCE when AI finishes analyzing an alarm
+    // Show it with animation/highlight — this is the "wow" moment
+    showDiagnosis(data);
+  }
+};
+
+function showDiagnosis(diag) {
+  // diag.diagnosis is markdown text, render it
+  // Key sections to parse:
+  //   "## Diagnosis: BEARING_WEAR"   → title
+  //   "**Confidence:**"              → badge
+  //   "**Evidence:**"                → bullet list
+  //   "**Action:**"                  → action box
+  //   "**Parts:**"                   → parts info
+  //   "**Cost of Inaction:**"        → urgency warning
+}
+```
+
+### AI Diagnosis Panel (build this)
+
+```
+┌──────────────────────────────────────────────────────┐
+│  🧠 AI DIAGNOSIS                    Powered by Qwen │
+│                                                      │
+│  Robot2 Joint 3 — BEARING WEAR                       │
+│  Confidence: HIGH (4/4 sensors)     ⏱ 3.4s          │
+│                                                      │
+│  Evidence:                                           │
+│  ✓ Temperature 72.5°C — exceeds KUKA >70°C threshold│
+│  ✓ Vibration 5.2 mm/s — high-frequency elevation    │
+│  ✓ Current 5.8A — motor compensating for friction   │
+│  ✓ Torque stable — rules out external load change   │
+│                                                      │
+│  Root Cause:                                         │
+│  Bearing degradation causing friction → heat →       │
+│  vibration. Motor draws more current to compensate.  │
+│                                                      │
+│  Action: Replace bearing within 14 days              │
+│  Parts: Nabtesco RV reducer (€2,000-8,000)          │
+│                                                      │
+│  ⚠ Cost of Inaction: 8-16hr downtime + €8K parts    │
+└──────────────────────────────────────────────────────┘
+```
+
+- Panel is HIDDEN when no diagnosis exists
+- Slides in with animation when `type: "diagnosis"` arrives
+- Parse the markdown `diagnosis` field for sections
+- Color the confidence badge: High=green, Medium=yellow, Low=red
+- Show `latency_ms` as "⏱ 3.4s" — proves it's real-time AI
 
 ## REST API Endpoints
 
 ```
-GET /api/robots          → same as robots{} from WebSocket
-GET /api/alarms          → same as alarms[] (active only)
-GET /api/alarms/history  → all alarms including resolved
-GET /api/predictions     → same as predictions[]
+GET /api/robots             → same as robots{} from WebSocket
+GET /api/alarms             → same as alarms[] (active only)
+GET /api/alarms/history     → all alarms including resolved
+GET /api/predictions        → same as predictions[]
+GET /api/diagnosis          → latest AI diagnosis (or empty {})
+GET /api/diagnosis/history  → all past diagnoses
+GET /api/health             → server health check
 ```
 
 ## 3 Robots in the Demo
