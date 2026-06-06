@@ -21,7 +21,7 @@ log = structlog.get_logger()
 # Qwen API config
 QWEN_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
 QWEN_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-QWEN_MODEL = "qwen-flash"  # Free tier available, 2s response, good quality.
+QWEN_MODEL = "qwen-plus"  # 2s response, best diagnostic quality.
 
 
 # ============================================================
