@@ -10,7 +10,7 @@ pointing it at a live backend later needs no redeploy.
 
 ## Who has to do the import (and why)
 
-The repo `PratikAutomation/RoboTbd` is under a **personal GitHub account**, so the initial
+The repo `PratikAutomation/Robo-Flow` is under a **personal GitHub account**, so the initial
 Vercel import can only be done by the **account owner (Pratik)**. Vercel connects to a repo
 by installing the **Vercel GitHub App** on the owning account, and a GitHub App can only be
 authorized on a personal account by that account's owner — write collaborators can push
@@ -24,7 +24,7 @@ team can manage deployments, previews, and env vars without further owner involv
 ## One-time setup (repo owner)
 
 1. Go to **[vercel.com](https://vercel.com)** → sign in with **GitHub** → **Add New… → Project**.
-2. **Import** the **RoboTbd** repo (authorize Vercel for GitHub if prompted).
+2. **Import** the **Robo-Flow** repo (authorize Vercel for GitHub if prompted).
 3. On the configure screen, set:
    - **Root Directory → `dashboard`** — click *Edit* and select the `dashboard` folder.
      **This is the critical step.** If skipped, Vercel tries to build the Python backend at

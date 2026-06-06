@@ -113,7 +113,7 @@ Keep your 3D factory floor — it's impressive. Add clean data panels as overlay
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ TOP BAR                                                             │
-│ Logo/Name    "RoboTbd"         Fleet: 3 robots    Status: ONLINE   │
+│ Logo/Name    "Robo-Flow"         Fleet: 3 robots    Status: ONLINE   │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  LEFT PANEL (fixed, 300px)    │    CENTER (3D factory floor)        │

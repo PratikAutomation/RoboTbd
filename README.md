@@ -1,4 +1,4 @@
-# RoboTbd
+# Robo-Flow
 
 **One dashboard for your entire mixed-vendor robot fleet.**
 
@@ -12,7 +12,7 @@ AI-powered health monitoring, smart alarms, and failure predictions for industri
 
 **[Live Demo](https://roboflow-umber.vercel.app/?ws=wss://web-production-27a5.up.railway.app/ws)** · **[API Health](https://web-production-27a5.up.railway.app/api/health)**
 
-![RoboTbd Dashboard](docs/dashboard-screenshot.png)
+![Robo-Flow Dashboard](docs/dashboard-screenshot.png)
 
 ## The Problem
 
@@ -21,7 +21,7 @@ AI-powered health monitoring, smart alarms, and failure predictions for industri
 ## What We Built
 
 ```
-Factory Floor                   RoboTbd                        Dashboard
+Factory Floor                   Robo-Flow                        Dashboard
 ─────────────                   ───────                        ─────────
 
  ┌──────┐
