@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>RoboLink · Factory Twin (3D)</title>
+<style>
+  :root {
+    --bg:#060a10; --edge:#4ee5ff; --dim:#1f6478; --hud:#5b8a96;
+    --f1:#a8ff5e; --f2:#5ec8ff; --f3:#ffb84e; --f4:#ff5ec8;
+    --running:#4ee5ff; --idle:#5b8a96; --maint:#ffb84e; --err:#ff5e5e; --off:#3a3a3a;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; overflow:hidden; background:var(--bg); font-family:ui-monospace,monospace; color:var(--hud); user-select:none; -webkit-user-select:none; }
+  canvas { display:block; cursor:grab; } canvas:active { cursor:grabbing; }
+
+  /* HUD corners */
+  .hud { position:fixed; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; pointer-events:none; transition: opacity 0.3s; }
+  .tl{top:60px;left:16px;} .tr{top:16px;right:16px;text-align:right;}
+  .bl{bottom:16px;left:16px;} .br{bottom:16px;right:16px;text-align:right;}
+  .hud .v{color:var(--edge);} .hud .f1{color:var(--f1);} .hud .f2{color:var(--f2);} .hud .f3{color:var(--f3);} .hud .f4{color:var(--f4);}
+  .hud .label{opacity:0.5;display:block;font-size:9px;margin-bottom:3px;} .hud .row{margin-top:8px;}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px;animation:pulse 1.2s ease-in-out infinite;background:var(--edge);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  .corner{position:fixed;width:22px;height:22px;border:1px solid var(--edge);opacity:0.4;}
+  .c1{top:8px;left:8px;border-right:none;border-bottom:none;} .c2{top:8px;right:8px;border-left:none;border-bottom:none;}
+  .c3{bottom:8px;left:8px;border-right:none;border-top:none;} .c4{bottom:8px;right:8px;border-left:none;border-top:none;}
+  .scan{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(78,229,255,0.018) 3px 4px);}
+
+  /* Back button & hint */
+  .back-btn {
+    position: fixed; top: 16px; left: 16px;
+    background: rgba(78,229,255,0.12); color: var(--edge); border: 1px solid var(--edge);
+    padding: 10px 14px; font: inherit; font-size: 10px; letter-spacing: 0.2em;
+    text-transform: uppercase; cursor: pointer; display: none; z-index: 10;
+  }
+  .back-btn:hover, .back-btn:active { background: rgba(78,229,255,0.28); }
+  .floor-hint {
+    position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+    color: var(--edge); font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase;
+    pointer-events: none; opacity: 0.7; animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100% { opacity:0.4; } 50% { opacity:0.9; } }
+
+  /* Zoom controls (scroll / pinch also work) */
+  .zoom-ctrl { position:fixed; top:50%; right:16px; transform:translateY(-50%);
+    display:flex; flex-direction:column; gap:8px; z-index:10; }
+  .zoom-ctrl button { width:38px; height:38px; background:transparent; color:var(--edge);
+    border:1px solid var(--edge); font:inherit; font-size:20px; line-height:1; cursor:pointer; }
+  .zoom-ctrl button:hover, .zoom-ctrl button:active { background:rgba(78,229,255,0.12); }
+
+  /* Floating machine badges (project 3D position to screen) */
+  #badges { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
+  .badge {
+    position: absolute; transform: translate(-50%, -100%);
+    background: rgba(6,10,16,0.92); border: 1px solid currentColor;
+    padding: 5px 9px; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+    white-space: nowrap; pointer-events: auto; cursor: pointer; line-height: 1.4;
+    transition: background 0.2s, opacity 0.2s;
+  }
+  .badge:hover { background: rgba(6,10,16,1); transform: translate(-50%, -100%) scale(1.05); }
+  .badge-dot { display:inline-block; width:5px; height:5px; border-radius:50%; background:currentColor; margin-right:5px; vertical-align:1px; }
+  .badge-id { color:#aac; font-weight:600; }
+  .badge-status { font-weight:600; margin-left:6px; }
+  /* Compact mode: every machine is a colored box + circle; full label only on click */
+  .badge.compact { padding:4px; background:rgba(6,10,16,0.8); }
+  .badge.compact .badge-id, .badge.compact .badge-status { display:none; }
+  .badge.compact .badge-dot { margin-right:0; width:7px; height:7px; }
+
+  /* Side panel */
+  .panel {
+    position: fixed; top: 0; right: 0;
+    width: min(360px, 88vw); height: 100vh;
+    background: rgba(6,10,16,0.96); border-left: 2px solid currentColor;
+    padding: 60px 22px 22px; color: var(--hud);
+    font-size: 12px; z-index: 20; overflow-y: auto;
+    transform: translateX(100%); transition: transform 0.25s;
+    backdrop-filter: blur(8px);
+  }
+  .panel.open { transform: translateX(0); }
+  .panel-close {
+    position: absolute; top: 14px; right: 14px;
+    width: 32px; height: 32px; background: transparent;
+    border: 1px solid currentColor; color: currentColor;
+    font-size: 18px; cursor: pointer; font-family: inherit;
+  }
+  .panel-id { color: currentColor; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
+  .panel-label { font-size: 18px; color: #fff; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .panel-type { font-size: 10px; opacity: 0.5; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.15em; }
+  .panel-status { display:flex; align-items:center; gap:8px; padding:10px 0; margin-top:14px;
+    border-top:1px solid rgba(78,229,255,0.2); border-bottom:1px solid rgba(78,229,255,0.2);
+    font-size:11px; letter-spacing:0.2em; text-transform:uppercase; font-weight:600; }
+  .panel-status-dot { width:8px; height:8px; border-radius:50%; background:currentColor; }
+  .panel-section { margin-top: 20px; }
+  .panel-section-title { font-size: 9px; letter-spacing: 0.25em; opacity: 0.5; margin-bottom: 10px; }
+  .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .panel-cell { padding: 10px; border: 1px solid rgba(78,229,255,0.2); }
+  .panel-cell-l { font-size: 9px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.15em; }
+  .panel-cell-v { font-size: 18px; color: var(--edge); margin-top: 4px; }
+  .panel-ctrls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .panel-ctrls button {
+    background: transparent; border: 1px solid currentColor; color: currentColor;
+    padding: 8px 10px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+    cursor: pointer; font-family: inherit;
+  }
+  .panel-ctrls button:hover { background: rgba(78,229,255,0.12); }
+
+  /* Status-driven badge alert pulse (error / maintenance) */
+  .badge.alert { animation: badgepulse 1s ease-in-out infinite; }
+  @keyframes badgepulse { 0%,100%{ box-shadow:0 0 0 0 currentColor; } 50%{ box-shadow:0 0 9px 1px currentColor; } }
+
+  /* Panel: sparkline trend + event log */
+  .panel-spark { border:1px solid rgba(78,229,255,0.2); padding:8px; }
+  .panel-spark svg { display:block; width:100%; height:44px; }
+  .panel-spark-l { display:flex; justify-content:space-between; font-size:9px; opacity:0.5; margin-top:6px; text-transform:uppercase; letter-spacing:0.12em; }
+  .panel-log { display:flex; flex-direction:column; gap:6px; }
+  .log-row { display:flex; align-items:center; gap:8px; font-size:10px; padding:6px 8px; border-left:2px solid currentColor; background:rgba(255,255,255,0.02); }
+  .log-row .t { opacity:0.5; font-variant-numeric:tabular-nums; }
+  .log-row .m { color:#cde; text-transform:uppercase; letter-spacing:0.1em; }
+  .log-empty { font-size:10px; opacity:0.4; }
+
+  /* Robot-arm panel: health, joints, sensor trends, alarms, prediction */
+  .health-row { display:flex; align-items:baseline; gap:14px; }
+  .health-num { font-size:42px; line-height:1; font-weight:700; font-variant-numeric:tabular-nums; }
+  .health-num span { font-size:13px; opacity:0.5; font-weight:400; }
+  .health-meta { font-size:10px; opacity:0.6; text-transform:uppercase; letter-spacing:0.12em; line-height:1.7; }
+  .joint-row { display:flex; align-items:center; gap:10px; margin-bottom:7px; font-size:10px; }
+  .joint-id { width:22px; color:#cde; font-weight:600; }
+  .joint-bar { flex:0 0 54px; height:6px; background:rgba(255,255,255,0.08); position:relative; }
+  .joint-bar span { position:absolute; left:0; top:0; bottom:0; }
+  .joint-metrics { display:flex; gap:9px; flex-wrap:wrap; font-variant-numeric:tabular-nums; }
+  .metric-spark { margin-bottom:10px; }
+  .metric-spark svg { display:block; width:100%; height:38px; border:1px solid rgba(78,229,255,0.15); }
+  .metric-spark .ms-l { display:flex; justify-content:space-between; font-size:9px; opacity:0.55; text-transform:uppercase; letter-spacing:0.1em; margin-top:3px; }
+  .alarm-row { display:flex; gap:8px; font-size:10px; padding:5px 8px; border-left:2px solid currentColor; background:rgba(255,255,255,0.02); margin-bottom:5px; }
+  .alarm-row .sev { text-transform:uppercase; font-weight:600; letter-spacing:0.1em; }
+  .alarm-row .amsg { color:#cde; }
+  .pred-head { font-size:10px; opacity:0.6; text-transform:uppercase; letter-spacing:0.12em; }
+  .pred-big { font-size:26px; color:#fff; margin:4px 0; font-variant-numeric:tabular-nums; }
+  .pred-big span { font-size:11px; opacity:0.5; }
+  .pred-sub { font-size:10px; opacity:0.6; text-transform:uppercase; letter-spacing:0.1em; }
+  .pred-bar { height:6px; background:rgba(255,255,255,0.08); margin-top:8px; position:relative; }
+  .pred-bar span { position:absolute; left:0; top:0; bottom:0; background:#ffb84e; }
+  .diag-text { font-size:11px; line-height:1.5; color:#dfe6ea; white-space:pre-wrap; }
+  .diag-meta { font-size:9px; opacity:0.5; margin-top:6px; text-transform:uppercase; letter-spacing:0.12em; }
+
+  /* Hover dashboard (building view) — floats beside the hovered floor */
+  #floor-dash {
+    position:fixed; z-index:7; pointer-events:none; display:none;
+    width:210px; padding:13px 15px; transform:translateY(-50%);
+    background:rgba(6,10,16,0.94); border:1px solid var(--edge);
+    box-shadow:0 0 18px rgba(78,229,255,0.18);
+    font-size:10px; color:var(--hud); letter-spacing:0.08em;
+  }
+  #floor-dash .fd-name { color:var(--edge); font-size:13px; text-transform:uppercase; letter-spacing:0.16em; }
+  #floor-dash .fd-sub { opacity:0.6; margin-top:4px; text-transform:uppercase; letter-spacing:0.12em; }
+  #floor-dash .fd-chips { display:flex; flex-wrap:wrap; gap:5px 10px; margin-top:10px; }
+  #floor-dash .fd-chip { white-space:nowrap; text-transform:uppercase; }
+  #floor-dash .fd-dot { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:1px; }
+  #floor-dash .fd-ttl { font-size:9px; letter-spacing:0.22em; opacity:0.45; margin-top:12px; text-transform:uppercase; }
+  #floor-dash .fd-alert { margin-top:4px; text-transform:uppercase; letter-spacing:0.08em; }
+  #floor-dash .fd-nominal { opacity:0.45; }
+</style>
+</head>
+<body>
+<div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
+<div class="scan"></div>
+<button class="back-btn" id="backBtn">← BUILDING</button>
+<div class="zoom-ctrl" id="zoomCtrl">
+  <button id="zoomIn" title="Zoom in">+</button>
+  <button id="zoomOut" title="Zoom out">−</button>
+</div>
+<div class="floor-hint" id="hint">▲ tap a floor ▲</div>
+<div class="hud tl" id="hud-tl"></div>
+<div class="hud tr" id="hud-tr"></div>
+<div class="hud bl" id="hud-bl"></div>
+<div class="hud br" id="hud-br"></div>
+<div id="badges"></div>
+<aside class="panel" id="panel" style="color:var(--edge)"></aside>
+<div id="floor-dash"></div>
+
+<script src="./three.min.js"></script>
+
+<script>
+// =============================================================================
+//   SECTION 1 — LAYOUT DATA
+//   This is the SOURCE OF TRUTH for what machines exist and where they are.
+//   To add/move/swap a machine: edit this object. The renderer reads it and
+//   builds the scene. Each floor has a `machines` array; each machine has
+//   { id, type, label, position, rotation, config }.
+// =============================================================================
+
+const LAYOUT = {
+  facility: 'PLANT-07',
+  floors: [
+    // ---- FLOOR 1: SORTING ----
+    {
+      id: 'floor1', name: 'Sorting Hub', accent: 0xa8ff5e,
+      // Equipment (clickable, shows badge + panel when selected)
+      machines: [
+        { id: 'CONV-IN',  type: 'conveyor_line', label: 'Inbound Conveyor', from: [-20, 0], to: [0, 0],   width: 1.4 },
+        { id: 'CONV-A',   type: 'conveyor_line', label: 'Branch A',         from: [0, 0],   to: [14, -10], width: 1.4 },
+        { id: 'CONV-B',   type: 'conveyor_line', label: 'Branch B',         from: [0, 0],   to: [18, 0],   width: 1.4 },
+        { id: 'CONV-C',   type: 'conveyor_line', label: 'Branch C',         from: [0, 0],   to: [14, 10],  width: 1.4 },
+        { id: 'BIN-A',    type: 'sort_bin',      label: 'Destination A',    position: [16, 0, -12], color: 0x5ec8ff },
+        { id: 'BIN-B',    type: 'sort_bin',      label: 'Destination B',    position: [21, 0, 0],   color: 0xff5ec8 },
+        { id: 'BIN-C',    type: 'sort_bin',      label: 'Destination C',    position: [16, 0, 12],  color: 0xa8ff5e }
+      ],
+      // Visual-only flow particles (not clickable equipment)
+      flows: [{ type: 'sort_packages', count: 18 }]
+    },
+
+    // ---- FLOOR 2: BOTTLING ----
+    {
+      id: 'floor2', name: 'Bottling Line', accent: 0x5ec8ff,
+      machines: [
+        // 4 lane conveyors
+        ...[-3, -1, 1, 3].map((z, i) => ({
+          id: `LANE-${i+1}`, type: 'conveyor_line', label: `Lane ${i+1}`,
+          from: [-16, z], to: [16, z], width: 1.2
+        })),
+        // Fillers
+        ...[-3, -1, 1, 3].map((z, i) => ({
+          id: `FILL-${i+1}`, type: 'filler', label: `Filler ${i+1}`,
+          position: [-6, 3.8, z]
+        })),
+        // Cappers
+        ...[-3, -1, 1, 3].map((z, i) => ({
+          id: `CAP-${i+1}`, type: 'capper', label: `Capper ${i+1}`,
+          position: [4, 3.9, z]
+        })),
+        // Output bins
+        ...[-3, -1, 1, 3].map((z, i) => ({
+          id: `OUT-${i+1}`, type: 'output_bin', label: `Output ${i+1}`,
+          position: [17, 0, z]
+        }))
+      ],
+      flows: [{ type: 'bottles_on_lanes', lanes: [-3, -1, 1, 3], perLane: 10 }]
+    },
+
+    // ---- FLOOR 3: ASSEMBLY ----
+    {
+      id: 'floor3', name: 'Welding Assembly', accent: 0xffb84e,
+      machines: [
+        { id: 'TRACK', type: 'assembly_track', label: 'Conveyor Track',
+          from: [-25, 0], to: [25, 0], width: 3.2 },
+        // 4 stations x 4 arms each = 16 weld arms.
+        // The track/cars run down z=0; every arm reaches toward that centerline.
+        // A welding arm reaches toward -z by default, so +z-side arms keep that
+        // orientation and -z-side arms turn 180°. Ceiling arms also flip to hang down:
+        //   [0,0,π] hangs down + reaches -z;  [π,0,0] hangs down + reaches +z.
+        ...[-15, -5, 5, 15].flatMap((sx, si) => [
+          { id: `WELD-${si+1}-A`, type: 'welding_arm', label: `Station ${si+1} · Arm A`, position: [sx, 0, 3.5],  rotation: [0, 0, 0],        mount: 'floor' },
+          { id: `WELD-${si+1}-B`, type: 'welding_arm', label: `Station ${si+1} · Arm B`, position: [sx, 0, -3.5], rotation: [0, Math.PI, 0],  mount: 'floor' },
+          { id: `WELD-${si+1}-C`, type: 'welding_arm', label: `Station ${si+1} · Arm C`, position: [sx-1, 7, 2.2], rotation: [0, 0, Math.PI],  mount: 'ceiling' },
+          { id: `WELD-${si+1}-D`, type: 'welding_arm', label: `Station ${si+1} · Arm D`, position: [sx+1, 7, -2.2], rotation: [Math.PI, 0, 0], mount: 'ceiling' }
+        ])
+      ],
+      flows: [{ type: 'car_bodies_on_track', count: 4 }]
+    },
+
+    // ---- FLOOR 4: GENERAL FACTORY ----
+    {
+      id: 'floor4', name: 'Process Floor', accent: 0xff5ec8,
+      machines: [
+        { id: 'MAIN-CONV', type: 'conveyor_line', label: 'Main Conveyor', from: [-20, 0], to: [20, 0], width: 2.2 },
+        { id: 'ARM-01',    type: 'robot_arm', label: 'Pick Arm 1', position: [-12, 0, 4], rotation: [0, 0, 0] },
+        { id: 'ARM-02',    type: 'robot_arm', label: 'Pick Arm 2', position: [0, 0, 4],   rotation: [0, 0, 0] },
+        { id: 'ARM-03',    type: 'robot_arm', label: 'Pick Arm 3', position: [12, 0, 4],  rotation: [0, 0, 0] },
+        { id: 'SILO-W',    type: 'silo', label: 'Silo West', position: [-22, 0, 0], height: 5.5, radius: 1.4 },
+        { id: 'SILO-E',    type: 'silo', label: 'Silo East', position: [22, 0, 0],  height: 5.5, radius: 1.4 },
+        { id: 'WS-NW',     type: 'workstation', label: 'Workstation NW', position: [-20, 0, -16], size: [4, 2.5, 4] },
+        { id: 'WS-SE',     type: 'workstation', label: 'Workstation SE', position: [20, 0, 16],   size: [4, 2.5, 4] },
+        { id: 'WS-NE',     type: 'workstation', label: 'Workstation NE', position: [20, 0, -14],  size: [3, 3.5, 6] },
+        { id: 'WS-SW',     type: 'workstation', label: 'Workstation SW', position: [-20, 0, 14],  size: [3, 3.5, 6] }
+        // ──────────────────────────────────────────────────────────
+        //  TO ADD A REALISTIC GLB MODEL: copy this commented entry,
+        //  drop a model file in ./models/, point `url` at it.
+        // {
+        //   id: 'KUKA-01', type: 'glb_model', label: 'KUKA KR16',
+        //   position: [-6, 0, 0], rotation: [0, 0, 0],
+        //   config: { url: './models/kuka_kr16.glb', scale: 1, wireframe: true }
+        // }
+        // ──────────────────────────────────────────────────────────
+      ],
+      flows: [{ type: 'parts_on_conveyor', count: 5 }]
+    }
+  ]
+};
+
+// =============================================================================
+//   SECTION 2 — CONSTANTS
+//   Status colors, type labels. Edit here to retheme.
+// =============================================================================
+
+const STATUS_COLORS = {
+  running:     '#4ee5ff',
+  idle:        '#5b8a96',
+  maintenance: '#ffb84e',
+  error:       '#ff5e5e',
+  offline:     '#3a3a3a'
+};
+const STATUS_LABELS = {
+  running: 'RUNNING', idle: 'IDLE', maintenance: 'MAINTENANCE', error: 'ERROR', offline: 'OFFLINE'
+};
+const TYPE_LABELS = {
+  conveyor_line: 'Conveyor', sort_bin: 'Sort Bin', output_bin: 'Output Bin',
+  filler: 'Filler', capper: 'Capper', assembly_track: 'Assembly Track',
+  welding_arm: 'Welding Arm', robot_arm: 'Robot Arm', silo: 'Silo',
+  workstation: 'Workstation', glb_model: 'External Model'
+};
+
+// ---- RoboLink-aligned monitoring constants ----
+// Per-joint sensor thresholds (match the RoboLink backend FRONTEND-API.md).
+const THRESHOLDS = {
+  temperature: { warning: 65, critical: 80, unit: '°C' },
+  torque:      { warning: 100, critical: 130, unit: 'Nm' },
+  vibration:   { warning: 4, critical: 7, unit: 'mm/s' },
+  current:     { warning: 7, critical: 9, unit: 'A' }
+};
+const JOINT_METRICS = ['temperature', 'torque', 'vibration', 'current'];  // alarmable
+const SEVERITY_COLORS = { info: '#5ec8ff', warning: '#ffb84e', critical: '#ff5e5e' };
+// Arm machines get a real robot vendor/model + behavior (mirrors RoboLink's 3 robots).
+const ROBOT_PROFILES = [
+  { vendor: 'ur',   model: 'UR10e',    behavior: 'healthy'   },
+  { vendor: 'kuka', model: 'KR-16',    behavior: 'degrading' },  // Joint 3 wears over time
+  { vendor: 'abb',  model: 'IRB-6700', behavior: 'anomaly'   }   // random spikes
+];
+const ARM_TYPES = new Set(['robot_arm', 'welding_arm']);
+
+// =============================================================================
+//   SECTION 3 — STATE
+//   Lightweight pub/sub. The simulator and UI both call updateTelemetry().
+//   Subscribers get notified (used to refresh badges + panel).
+// =============================================================================
+
+const state = {
+  selectedId: null,
+  currentView: 'building',
+  telemetry: {},   // machineId -> { status, utilization, partsProcessed, temperature, rpm, lastMaintenance, alarms }
+  history: {},     // machineId -> [{ u, temp }]  ring buffer feeding the panel sparkline
+  events: [],      // [{ id, from, to, t }]  global status-change log, newest first
+  listeners: new Set()
+};
+
+const HISTORY_LEN = 48;  // samples kept per machine for the trend sparkline
+
+function subscribe(fn) { state.listeners.add(fn); return () => state.listeners.delete(fn); }
+function emit() { state.listeners.forEach(fn => fn(state)); }
+function setSelected(id) { state.selectedId = id; emit(); }
+function fmtTime(ts) { return new Date(ts).toTimeString().slice(0, 8); }
+function logEvent(id, from, to) {
+  state.events.unshift({ id, from, to, t: Date.now() });
+  if (state.events.length > 60) state.events.pop();
+}
+function jointMax(joints, metric) {
+  let m = 0; for (const k in joints) m = Math.max(m, joints[k][metric] || 0); return m;
+}
+function updateTelemetry(id, patch) {
+  const prev = state.telemetry[id] || {};
+  const next = { ...prev, ...patch };
+  state.telemetry[id] = next;
+  // Record a history sample (richer for robot arms — feeds the panel sparklines)
+  const h = state.history[id] || (state.history[id] = []);
+  h.push(next.joints
+    ? { health: next.health_score || 0, temperature: jointMax(next.joints, 'temperature'),
+        torque: jointMax(next.joints, 'torque'), vibration: jointMax(next.joints, 'vibration'),
+        current: jointMax(next.joints, 'current') }
+    : { u: next.utilization || 0, temp: next.temperature || 0 });
+  if (h.length > HISTORY_LEN) h.shift();
+  // Log status transitions as events (drives the panel event log)
+  if (patch.status && patch.status !== prev.status) logEvent(id, prev.status, patch.status);
+  emit();
+}
+
+// Mock-only behavior profiles, kept OUT of telemetry so telemetry matches the
+// real RoboLink schema exactly (and can be replaced by the live feed verbatim).
+const simProfiles = {};   // machineId -> { behavior, seed }
+
+// Initialize telemetry for every machine. Arm machines (robot_arm / welding_arm)
+// get the full RoboLink robot schema: vendor/model, health_score, 6 joints,
+// alarms, prediction. Everything else keeps a lighter machine telemetry shape.
+let _armIdx = 0;
+LAYOUT.floors.forEach(f => f.machines.forEach(m => {
+  if (ARM_TYPES.has(m.type)) {
+    const p = ROBOT_PROFILES[_armIdx++ % ROBOT_PROFILES.length];
+    simProfiles[m.id] = { behavior: p.behavior, seed: _armIdx * 1.7 };
+    const joints = {};
+    for (let j = 1; j <= 6; j++) joints[j] = {
+      joint_id: j, position: 0, velocity: 0, torque: 30,
+      temperature: 42, current: 3, vibration: 1.5, error_code: 0, score: 100
+    };
+    state.telemetry[m.id] = {
+      robot_id: m.id, vendor: p.vendor, model: p.model, status: 'running',
+      safety_state: 'normal', health_score: 100, joints, alarms: [], prediction: null,
+      lastMaintenance: '2025-03-14'
+    };
+  } else {
+    state.telemetry[m.id] = {
+      status: 'running', utilization: 0.7, partsProcessed: Math.floor(Math.random() * 5000),
+      temperature: 35 + Math.random() * 10, rpm: 1100 + Math.random() * 300,
+      health_score: 100, lastMaintenance: '2025-03-14', alarms: []
+    };
+  }
+  state.history[m.id] = [];
+}));
+
+// =============================================================================
+//   SECTION 4 — THREE.JS SETUP
+// =============================================================================
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060a10);
+scene.fog = new THREE.Fog(0x060a10, 35, 110);
+const camera = new THREE.PerspectiveCamera(22, innerWidth/innerHeight, 0.1, 400);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// =============================================================================
+//   SECTION 5 — HELPERS / PRIMITIVES
+//   The wireframe building blocks. Every machine factory uses these.
+// =============================================================================
+
+const lm = (c, o = 0.9) => new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: o });
+const mkBox = (w, h, d, m) => new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), m);
+const mkCyl = (r, h, s, m) => new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(r, r, h, s), 1), m);
+
+// Shared materials
+const M = {
+  edge: lm(0x4ee5ff, 0.9), dim: lm(0x1f6478, 0.55),
+  f1: lm(0xa8ff5e), f2: lm(0x5ec8ff), f3: lm(0xffb84e), f4: lm(0xff5ec8),
+  f1d: lm(0xa8ff5e, 0.4), f2d: lm(0x5ec8ff, 0.4), f3d: lm(0xffb84e, 0.4), f4d: lm(0xff5ec8, 0.4),
+  bot: lm(0xffb84e), part: lm(0xff5ec8), spark: lm(0xfff5a8),
+  bottle: lm(0xa8e5ff, 0.95), liquid: lm(0x5ec8ff), cap: lm(0xff9d4e), car: lm(0x5ec8ff),
+  pkgA: lm(0x5ec8ff), pkgB: lm(0xff5ec8), pkgC: lm(0xa8ff5e), pkgU: lm(0xffb84e)
+};
+
+/**
+ * Apply wireframe edges to every mesh inside a loaded model.
+ * Use this on GLB-loaded geometry to keep the stylized look.
+ */
+function applyWireframeOverlay(obj, color = 0x4ee5ff) {
+  const mat = lm(color, 0.9);
+  obj.traverse(c => {
+    if (c.isMesh) {
+      const edges = new THREE.EdgesGeometry(c.geometry, 15);
+      const line = new THREE.LineSegments(edges, mat);
+      c.add(line);
+      c.material.transparent = true;
+      c.material.opacity = 0;  // hide the filled mesh, keep just edges
+    }
+  });
+}
+
+// =============================================================================
+//   SECTION 6 — MACHINE FACTORIES
+//   One function per machine type. Each takes a machine data object and
+//   returns a THREE.Group (with userData.machineId set).
+//   To add a new machine type:
+//     1. Write a `makeMyType(machine)` function here
+//     2. Register it in MACHINE_FACTORIES below
+//     3. Use type:'my_type' in LAYOUT
+// =============================================================================
+
+function tagMachine(group, machine) {
+  group.userData.machineId = machine.id;
+  group.userData.label = machine.label;
+  group.userData.type = machine.type;
+  return group;
+}
+
+function makeConveyorLine(m) {
+  const g = new THREE.Group();
+  const [x1, z1] = m.from, [x2, z2] = m.to, w = m.width || 1.4;
+  const dx = x2 - x1, dz = z2 - z1, len = Math.sqrt(dx*dx + dz*dz);
+  const cx = (x1+x2)/2, cz = (z1+z2)/2, a = Math.atan2(dz, dx);
+  // Belt deck
+  const belt = mkBox(len, 0.2, w, M.edge); belt.position.set(cx, 0.6, cz); belt.rotation.y = -a; g.add(belt);
+  // Side rails
+  const offX = -Math.sin(a) * (w/2 + 0.05), offZ = Math.cos(a) * (w/2 + 0.05);
+  const rA = mkBox(len, 0.35, 0.08, M.edge); rA.position.set(cx+offX, 0.85, cz+offZ); rA.rotation.y = -a; g.add(rA);
+  const rB = mkBox(len, 0.35, 0.08, M.edge); rB.position.set(cx-offX, 0.85, cz-offZ); rB.rotation.y = -a; g.add(rB);
+  // Legs
+  const n = Math.max(3, Math.floor(len / 4));
+  for (let i = 0; i < n; i++) {
+    const f = i / Math.max(1, n - 1);
+    const leg = mkBox(0.25, 0.55, 0.25, M.dim);
+    leg.position.set(x1 + dx*f, 0.275, z1 + dz*f); g.add(leg);
+  }
+  return tagMachine(g, m);
+}
+
+function makeSortBin(m) {
+  const g = new THREE.Group();
+  const outer = mkBox(3, 1.6, 3, lm(m.color || 0x4ee5ff));
+  outer.position.set(...m.position).add(new THREE.Vector3(0, 0.8, 0));
+  g.add(outer);
+  const inner = mkBox(2.5, 1.3, 2.5, M.dim);
+  inner.position.set(...m.position).add(new THREE.Vector3(0, 0.85, 0));
+  g.add(inner);
+  return tagMachine(g, m);
+}
+
+function makeOutputBin(m) {
+  const g = new THREE.Group();
+  const b = mkBox(2.5, 1.5, 1.5, M.dim);
+  b.position.set(m.position[0], m.position[1] + 0.75, m.position[2]);
+  g.add(b);
+  return tagMachine(g, m);
+}
+
+function makeFiller(m) {
+  const g = new THREE.Group();
+  const n = mkBox(0.35, 1.2, 0.35, M.liquid);
+  n.position.set(...m.position);
+  g.add(n);
+  g.userData.animTarget = n; // simulator can grab this to bob it
+  return tagMachine(g, m);
+}
+
+function makeCapper(m) {
+  const g = new THREE.Group();
+  const c = mkCyl(0.3, 0.8, 10, M.cap);
+  c.position.set(...m.position);
+  g.add(c);
+  g.userData.animTarget = c;
+  return tagMachine(g, m);
+}
+
+function makeAssemblyTrack(m) {
+  const g = new THREE.Group();
+  const [x1, z1] = m.from, [x2, z2] = m.to;
+  const len = Math.abs(x2 - x1);
+  const cx = (x1+x2)/2, w = m.width || 3.2;
+  const track = mkBox(len, 0.2, w, M.edge); track.position.set(cx, 0.5, 0); g.add(track);
+  // Gantry rails
+  const r1 = mkBox(len, 0.2, 0.3, M.dim); r1.position.set(cx, 7, w/2 + 0.5); g.add(r1);
+  const r2 = mkBox(len, 0.2, 0.3, M.dim); r2.position.set(cx, 7, -(w/2 + 0.5)); g.add(r2);
+  // Columns
+  [-22, -8, 8, 22].forEach(x => {
+    const c1 = mkBox(0.3, 7, 0.3, M.dim); c1.position.set(x, 3.5, w/2 + 0.5); g.add(c1);
+    const c2 = mkBox(0.3, 7, 0.3, M.dim); c2.position.set(x, 3.5, -(w/2 + 0.5)); g.add(c2);
+  });
+  return tagMachine(g, m);
+}
+
+/**
+ * Articulated arm with shoulder→elbow→wrist hierarchy.
+ * Animated via state.telemetry[machine.id].status.
+ */
+function makeRobotArm(m) {
+  const root = new THREE.Group();
+  root.position.set(...m.position);
+  if (m.rotation) root.rotation.set(...m.rotation);
+  const base = mkCyl(0.9, 0.7, 14, M.bot); base.position.y = 0.35; root.add(base);
+  const sh = new THREE.Group(); sh.position.y = 0.7; root.add(sh);
+  const lo = mkBox(0.55, 2.6, 0.55, M.bot); lo.position.y = 1.3; sh.add(lo);
+  const el = new THREE.Group(); el.position.y = 2.6; sh.add(el);
+  const up = mkBox(0.45, 0.45, 2.6, M.bot); up.position.z = -1.3; el.add(up);
+  const wr = new THREE.Group(); wr.position.z = -2.6; el.add(wr);
+  const gr = mkBox(0.7, 0.35, 0.4, M.bot); wr.add(gr);
+  root.userData.animRefs = { sh, el, wr, kind: 'pick' };
+  return tagMachine(root, m);
+}
+
+function makeWeldingArm(m) {
+  const root = new THREE.Group();
+  root.position.set(...m.position);
+  if (m.rotation) root.rotation.set(...m.rotation);
+  const base = mkCyl(0.5, 0.4, 10, M.bot); base.position.y = 0.2; root.add(base);
+  const sh = new THREE.Group(); sh.position.y = 0.4; root.add(sh);
+  const lo = mkBox(0.35, 1.8, 0.35, M.bot); lo.position.y = 0.9; sh.add(lo);
+  const el = new THREE.Group(); el.position.y = 1.8; sh.add(el);
+  const up = mkBox(0.3, 0.3, 1.8, M.bot); up.position.z = -0.9; el.add(up);
+  const wr = new THREE.Group(); wr.position.z = -1.8; el.add(wr);
+  const torch = mkBox(0.2, 0.5, 0.2, M.bot); torch.position.y = -0.3; wr.add(torch);
+  const spark = mkBox(0.15, 0.15, 0.15, lm(0xfff5a8, 1));
+  spark.position.set(0, -0.6, 0); spark.material.opacity = 0; wr.add(spark);
+  root.userData.animRefs = { sh, el, wr, spark, kind: 'weld' };
+  return tagMachine(root, m);
+}
+
+function makeSilo(m) {
+  const g = new THREE.Group();
+  const c = mkCyl(m.radius || 1.4, m.height || 5.5, 14, M.edge);
+  c.position.set(m.position[0], (m.height || 5.5) / 2, m.position[2]);
+  g.add(c);
+  return tagMachine(g, m);
+}
+
+function makeWorkstation(m) {
+  const g = new THREE.Group();
+  const [w, h, d] = m.size || [4, 2.5, 4];
+  const b = mkBox(w, h, d, M.edge);
+  b.position.set(m.position[0], h/2, m.position[2]);
+  g.add(b);
+  return tagMachine(g, m);
+}
+
+/**
+ * STUB — load a GLB model and apply wireframe overlay.
+ * Requires Three.js GLTFLoader. To enable:
+ *   1. Add a <script> tag for the loader (or load locally)
+ *   2. Drop your .glb in ./models/
+ *   3. Add a layout entry with type:'glb_model' and config.url
+ *
+ * The model loads asynchronously; the group is returned immediately,
+ * mesh appears once loaded.
+ */
+function makeGLBModel(m) {
+  const g = new THREE.Group();
+  g.position.set(...m.position);
+  if (m.rotation) g.rotation.set(...m.rotation);
+  const cfg = m.config || {};
+  // Placeholder cube shown until model loads
+  const placeholder = mkBox(1, 1, 1, lm(0x4ee5ff, 0.4));
+  placeholder.position.y = 0.5;
+  g.add(placeholder);
+  // Uncomment when GLTFLoader is available:
+  //
+  // const loader = new THREE.GLTFLoader();
+  // loader.load(cfg.url, (gltf) => {
+  //   g.remove(placeholder);
+  //   const obj = gltf.scene;
+  //   if (cfg.scale) obj.scale.setScalar(cfg.scale);
+  //   if (cfg.wireframe !== false) applyWireframeOverlay(obj, cfg.color || 0x4ee5ff);
+  //   g.add(obj);
+  // }, undefined, (err) => console.warn('GLB load failed:', m.id, err));
+  return tagMachine(g, m);
+}
+
+const MACHINE_FACTORIES = {
+  conveyor_line:   makeConveyorLine,
+  sort_bin:        makeSortBin,
+  output_bin:      makeOutputBin,
+  filler:          makeFiller,
+  capper:          makeCapper,
+  assembly_track:  makeAssemblyTrack,
+  robot_arm:       makeRobotArm,
+  welding_arm:     makeWeldingArm,
+  silo:            makeSilo,
+  workstation:     makeWorkstation,
+  glb_model:       makeGLBModel
+};
+
+// =============================================================================
+//   SECTION 7 — SCENE BUILDERS
+//   Reads LAYOUT and instantiates machines via the factory registry.
+//   Each floor is a THREE.Group with `visible` toggled when switching views.
+// =============================================================================
+
+const groups = {};
+const machineObjects = {};  // machineId -> THREE.Group (for raycasting + animation)
+const animators = {};       // viewId -> function (per-floor animation loop)
+const refs = {};            // per-floor animation refs (flow particles etc.)
+const clickTargets = [];    // building-view floor click targets
+const buildingHighlights = {};  // floorId -> translucent glow box faded in on hover
+
+/** Build a floor scene from its layout data + visual flows. */
+function buildFloorScene(floorData) {
+  const g = new THREE.Group(); g.visible = false;
+
+  // Floor grid
+  const grid = new THREE.GridHelper(50, 25, 0x1f6478, 0x0e2e3a);
+  grid.material.transparent = true; grid.material.opacity = 0.5;
+  g.add(grid);
+
+  // Instantiate machines from data
+  floorData.machines.forEach(m => {
+    const factory = MACHINE_FACTORIES[m.type];
+    if (!factory) { console.warn('No factory for', m.type); return; }
+    const obj = factory(m);
+    g.add(obj);
+    machineObjects[m.id] = obj;
+  });
+
+  // Add flow particles per floor (animated items that aren't equipment)
+  refs[floorData.id] = setupFlows(g, floorData);
+
+  groups[floorData.id] = g;
+  scene.add(g);
+  animators[floorData.id] = (t) => animateFloor(floorData, t);
+}
+
+/** Set up animated flow particles (parts, packages, bottles, cars). */
+function setupFlows(g, floorData) {
+  const r = { flows: [] };
+  (floorData.flows || []).forEach(flow => {
+    if (flow.type === 'parts_on_conveyor') {
+      const parts = [];
+      for (let i = 0; i < flow.count; i++) {
+        const p = mkBox(0.9, 0.9, 0.9, M.part); p.position.y = 1.65;
+        parts.push(p); g.add(p);
+      }
+      r.flows.push({ kind: 'parts', items: parts });
+    } else if (flow.type === 'bottles_on_lanes') {
+      const bottles = [];
+      flow.lanes.forEach((z, li) => {
+        for (let i = 0; i < flow.perLane; i++) {
+          const bot = new THREE.Group();
+          const body = mkCyl(0.32, 1.2, 10, M.bottle); body.position.y = 0.6; bot.add(body);
+          const neck = mkCyl(0.15, 0.3, 8, M.bottle); neck.position.y = 1.35; bot.add(neck);
+          const cap = mkCyl(0.18, 0.18, 8, M.cap); cap.position.y = 1.6; cap.visible = false; bot.add(cap);
+          bot.position.set(0, 0.7, z); g.add(bot);
+          bottles.push({ mesh: bot, cap, off: (i/flow.perLane) * 32, hasCap: false, laneIdx: li });
+        }
+      });
+      r.flows.push({ kind: 'bottles', items: bottles });
+    } else if (flow.type === 'car_bodies_on_track') {
+      const cars = [];
+      for (let i = 0; i < flow.count; i++) {
+        const c = new THREE.Group();
+        const body = mkBox(4.5, 0.7, 1.7, M.car); body.position.y = 0.95; c.add(body);
+        const cabin = mkBox(2.3, 0.7, 1.5, M.car); cabin.position.set(-0.2, 1.65, 0); c.add(cabin);
+        const hood = mkBox(1.2, 0.15, 1.5, M.car); hood.position.set(1.5, 1.35, 0); c.add(hood);
+        [-1.5, 1.5].forEach(wx => [-0.85, 0.85].forEach(wz => {
+          const w = mkCyl(0.35, 0.25, 10, M.dim); w.rotation.x = Math.PI/2; w.position.set(wx, 0.65, wz); c.add(w);
+        }));
+        cars.push(c); g.add(c);
+      }
+      r.flows.push({ kind: 'cars', items: cars });
+    } else if (flow.type === 'sort_packages') {
+      const pkgs = [];
+      const branches = [
+        { end: [14, -10], mat: M.pkgA },
+        { end: [18, 0],   mat: M.pkgB },
+        { end: [14, 10],  mat: M.pkgC }
+      ];
+      for (let i = 0; i < flow.count; i++) {
+        const p = mkBox(0.7, 0.7, 0.7, M.pkgU); g.add(p);
+        pkgs.push({ mesh: p, t: i/flow.count, branchIdx: -1 });
+      }
+      r.flows.push({ kind: 'packages', items: pkgs, branches });
+    }
+  });
+  return r;
+}
+
+/** Per-frame animation for a floor. Reads state.telemetry to drive arms. */
+function animateFloor(floorData, t) {
+  const r = refs[floorData.id];
+
+  // Animate machines based on their status
+  floorData.machines.forEach(m => {
+    const obj = machineObjects[m.id];
+    if (!obj || !obj.userData.animRefs) return;
+    const tel = state.telemetry[m.id];
+    const status = tel && tel.status;
+    const a = obj.userData.animRefs;
+
+    if (status === 'running' || status === 'maintenance') {
+      const speed = status === 'running' ? 1.4 : 0.5;
+      const ph = t * speed + (m.id.charCodeAt(m.id.length - 1) * 0.1);
+      if (a.kind === 'pick') {
+        a.sh.rotation.y = Math.sin(ph * 0.7) * 0.35;
+        a.el.rotation.x = 0.55 + Math.sin(ph) * 0.45;
+        a.wr.rotation.x = -0.3 + Math.sin(ph * 1.6) * 0.25;
+      } else if (a.kind === 'weld') {
+        a.sh.rotation.y = Math.sin(ph * 0.8) * 0.3;
+        a.el.rotation.x = 0.6 + Math.sin(ph * 1.2) * 0.5;
+        a.wr.rotation.x = Math.sin(ph * 2) * 0.4;
+        a.spark.material.opacity = (status === 'running' && Math.sin(ph * 8) > 0.4) ? 1 : 0;
+      }
+    } else {
+      // Ease to rest
+      if (a.kind === 'pick') {
+        a.sh.rotation.y *= 0.92; a.el.rotation.x = a.el.rotation.x * 0.92 + 0.05; a.wr.rotation.x *= 0.92;
+      } else if (a.kind === 'weld') {
+        a.sh.rotation.y *= 0.92; a.el.rotation.x *= 0.92; a.wr.rotation.x *= 0.92;
+        a.spark.material.opacity = 0;
+      }
+    }
+  });
+
+  // Animate flow particles
+  if (!r) return;
+  r.flows.forEach(flow => {
+    if (flow.kind === 'parts') {
+      flow.items.forEach((p, i) => {
+        p.position.x = (((t * 2.2 + i * 8) % 40) + 40) % 40 - 20;
+      });
+    } else if (flow.kind === 'bottles') {
+      flow.items.forEach(b => {
+        const prev = b.mesh.position.x;
+        b.mesh.position.x = (((t * 2 + b.off) % 32) + 32) % 32 - 16;
+        if (b.mesh.position.x > 4.5 && !b.hasCap) { b.cap.visible = true; b.hasCap = true; }
+        if (prev > 0 && b.mesh.position.x < -10) { b.cap.visible = false; b.hasCap = false; }
+      });
+      // Bob fillers + capper rotation (using state.telemetry to gate)
+      ['FILL-1','FILL-2','FILL-3','FILL-4'].forEach((id, i) => {
+        const obj = machineObjects[id]; if (!obj || !obj.userData.animTarget) return;
+        const tel = state.telemetry[id];
+        if (tel && tel.status === 'running') {
+          obj.userData.animTarget.position.y = 3.8 - Math.max(0, Math.sin(t*2.2 + i*0.4)) * 0.6;
+        }
+      });
+      ['CAP-1','CAP-2','CAP-3','CAP-4'].forEach((id, i) => {
+        const obj = machineObjects[id]; if (!obj || !obj.userData.animTarget) return;
+        const tel = state.telemetry[id];
+        if (tel && tel.status === 'running') {
+          obj.userData.animTarget.position.y = 3.9 - Math.max(0, Math.sin(t*2.2 + i*0.4 + 0.6)) * 0.5;
+          obj.userData.animTarget.rotation.y = t * 8;
+        }
+      });
+    } else if (flow.kind === 'cars') {
+      flow.items.forEach((c, i) => {
+        c.position.x = (((t * 1.5 + i * 12.5) % 50) + 50) % 50 - 25;
+        c.position.y = 0.05;
+      });
+    } else if (flow.kind === 'packages') {
+      flow.items.forEach(p => {
+        const lt = ((t * 0.08 + p.t) % 1 + 1) % 1;
+        if (lt < 0.5) {
+          const s = lt / 0.5;
+          p.mesh.position.set(-20 + s * 20, 1.05, 0);
+          p.mesh.material = M.pkgU;
+          if (s > 0.95 && p.branchIdx < 0) p.branchIdx = Math.floor(Math.random() * 3);
+        } else {
+          if (p.branchIdx < 0) p.branchIdx = Math.floor(Math.random() * 3);
+          const br = flow.branches[p.branchIdx];
+          const s = (lt - 0.5) / 0.5;
+          p.mesh.position.set(br.end[0] * s, 1.05, br.end[1] * s);
+          p.mesh.material = br.mat;
+        }
+        if (lt < 0.1) p.branchIdx = -1;
+      });
+    }
+  });
+}
+
+// Build all floor scenes from LAYOUT
+LAYOUT.floors.forEach(buildFloorScene);
+
+// ---- Status-driven wire color --------------------------------------------
+// Machines share materials by default. Clone each machine's materials so a
+// status change recolors ONLY that machine, then map status -> color so the
+// floor reads as a live health map (cyan=running, grey=idle, amber=maint,
+// red=error, dark=offline). Flow particles (packages/bottles/cars) keep their
+// own decorative colors — they're product, not equipment.
+function initMachineMaterials() {
+  Object.values(machineObjects).forEach(obj => {
+    const mats = [];
+    obj.traverse(c => {
+      if (c.isLineSegments) { c.material = c.material.clone(); mats.push(c.material); }
+    });
+    obj.userData.statusMats = mats;
+  });
+}
+function updateMachineColors() {
+  // Color ALL floors (not just the current one) so the scaled miniatures in the
+  // building view — which share materials with the originals — stay live too.
+  LAYOUT.floors.forEach(floor => floor.machines.forEach(m => {
+    const obj = machineObjects[m.id], tel = state.telemetry[m.id];
+    if (!obj || !obj.userData.statusMats || !tel) return;
+    const col = STATUS_COLORS[tel.status] || '#4ee5ff';
+    const sel = state.selectedId === m.id;
+    obj.userData.statusMats.forEach(mat => {
+      mat.color.set(col);
+      mat.opacity = tel.status === 'offline' ? 0.25 : (sel ? 1 : 0.9);
+    });
+  }));
+}
+initMachineMaterials();
+
+// ---- Invisible click hitboxes --------------------------------------------
+// Raycasting thin wireframe lines is fragile — it needs pixel-perfect aim and
+// gets much worse as you zoom out. Instead, wrap each machine in an invisible
+// solid box sized to its bounds, and raycast against those. Robust at any zoom.
+const machineHitboxes = {};   // machineId -> invisible Mesh
+function buildHitboxes() {
+  scene.updateMatrixWorld(true);   // ensure machine world transforms are current
+  const box = new THREE.Box3(), size = new THREE.Vector3(), center = new THREE.Vector3();
+  LAYOUT.floors.forEach(floor => {
+    floor.machines.forEach(m => {
+      const obj = machineObjects[m.id]; if (!obj) return;
+      box.setFromObject(obj);
+      if (box.isEmpty()) return;
+      box.getSize(size); box.getCenter(center);
+      const hit = new THREE.Mesh(
+        new THREE.BoxGeometry(size.x + 0.4, size.y + 0.4, size.z + 0.4),
+        // DoubleSide so the ray still hits when the camera is zoomed inside the box
+        new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })
+      );
+      hit.position.copy(center);          // floor groups have no transform, so world == local
+      hit.userData.machineId = m.id;
+      groups[floor.id].add(hit);          // toggles visibility with the floor
+      machineHitboxes[m.id] = hit;
+    });
+  });
+}
+buildHitboxes();
+
+// =============================================================================
+//   SECTION 8 — BUILDING (section view)
+//   The lobby + 4 stacked factory floors with stair tower, viewable as an
+//   architectural cross-section. Visual-only — does not read LAYOUT.machines.
+//   (You can data-drive this later if you want; for now it's hand-composed.)
+// =============================================================================
+
+function buildBuilding() {
+  const g = new THREE.Group();
+  const FW = 28, FD = 12, LH = 3, FH = 5, BH = LH + FH * 4;
+  const STAIR_X = FW/2 - 3;
+  const F = [
+    { yB: 0,          h: LH, id: null,     col: M.edge },
+    { yB: LH,         h: FH, id: 'floor1', col: M.f1   },
+    { yB: LH + FH,    h: FH, id: 'floor2', col: M.f2   },
+    { yB: LH + FH*2,  h: FH, id: 'floor3', col: M.f3   },
+    { yB: LH + FH*3,  h: FH, id: 'floor4', col: M.f4   }
+  ];
+
+  // Slabs
+  F.forEach(fd => {
+    const slab = mkBox(FW, 0.18, FD, M.edge); slab.position.y = fd.yB; g.add(slab);
+  });
+  const roof = mkBox(FW + 0.4, 0.25, FD + 0.4, M.edge); roof.position.y = BH; g.add(roof);
+
+  // Corner columns + interior columns
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sz]) => {
+    const col = mkBox(0.5, BH, 0.5, M.edge);
+    col.position.set(sx * FW/2, BH/2, sz * FD/2); g.add(col);
+  });
+  [-FW/4, 0, FW/4].forEach(x => {
+    const col = mkBox(0.35, BH, 0.35, M.dim); col.position.set(x, BH/2, 0); g.add(col);
+  });
+
+  // Facade window mullions per floor
+  F.forEach(fd => {
+    const yT = fd.yB + fd.h - 0.4, yBb = fd.yB + 0.4;
+    const verts = [], mat = fd.id ? fd.col : M.dim;
+    [-FD/2, FD/2].forEach(z => {
+      verts.push(-FW/2, yT, z, FW/2, yT, z); verts.push(-FW/2, yBb, z, FW/2, yBb, z);
+    });
+    for (let x = -FW/2 + 2; x < FW/2; x += 2) verts.push(x, yBb, -FD/2, x, yT, -FD/2);
+    for (let z = -FD/2 + 2; z < FD/2; z += 2) {
+      verts.push(-FW/2, yBb, z, -FW/2, yT, z); verts.push(FW/2, yBb, z, FW/2, yT, z);
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    g.add(new THREE.LineSegments(geom, mat));
+  });
+
+  // Stair tower
+  const stairOutline = mkBox(2.6, BH, 2.6, M.dim); stairOutline.position.set(STAIR_X, BH/2, 0); g.add(stairOutline);
+  for (let i = 1; i < F.length; i++) {
+    const yLow = F[i-1].yB + 0.3, yHigh = F[i].yB - 0.1;
+    const dy = yHigh - yLow, len = Math.sqrt(4 + dy*dy), ang = Math.atan2(dy, 2);
+    const dir = i % 2 === 0 ? 1 : -1;
+    const stair = mkBox(len, 0.15, 1.1, M.edge);
+    stair.position.set(STAIR_X + dir * 0.6, (yLow+yHigh)/2, 0);
+    stair.rotation.z = -dir * ang; g.add(stair);
+  }
+
+  // Lobby content + roof equipment + trees + plinth + grid (visual decoration)
+  const desk = mkBox(3.5, 1, 1.2, M.edge); desk.position.set(-9, 0.5, 2); g.add(desk);
+  const overhang = mkBox(7, 0.2, 2.2, M.edge); overhang.position.set(-4, LH - 0.1, -FD/2 - 1.1); g.add(overhang);
+  const door = mkBox(2.4, LH - 0.6, 0.1, M.edge); door.position.set(-4, (LH - 0.6)/2, -FD/2); g.add(door);
+  const fl = new THREE.Group();
+  const flBody = mkBox(1.5, 0.7, 0.9, M.edge); flBody.position.y = 0.35; fl.add(flBody);
+  const flMast = mkBox(0.15, 1.3, 0.15, M.edge); flMast.position.set(0.6, 1, 0); fl.add(flMast);
+  fl.position.set(6, 0.1, 3); g.add(fl);
+  const hvac = mkBox(5, 1.4, 3, M.dim); hvac.position.set(-7, BH + 0.7, 0); g.add(hvac);
+  const water = mkCyl(1.4, 2.5, 12, M.dim); water.position.set(5, BH + 1.25, 1.5); g.add(water);
+  const mast = mkBox(0.18, 6, 0.18, M.edge); mast.position.set(10, BH + 3, -1); g.add(mast);
+  const sign = mkBox(4, 1, 0.15, M.edge); sign.position.set(-2, BH + 1.2, -FD/2 - 0.2); g.add(sign);
+  const grid = new THREE.GridHelper(80, 40, 0x1f6478, 0x0e2e3a);
+  grid.material.transparent = true; grid.material.opacity = 0.4; grid.position.y = -0.02; g.add(grid);
+  function tree(x, z, h) {
+    const trunk = mkBox(0.25, h*0.4, 0.25, M.dim); trunk.position.set(x, h*0.2, z); g.add(trunk);
+    const canopy = mkCyl(h*0.4, h*0.55, 8, M.dim); canopy.position.set(x, h*0.7, z); g.add(canopy);
+  }
+  tree(-FW/2 - 3, -FD/2 - 1.5, 4); tree(-FW/2 - 5, -FD/2 - 3, 5);
+  tree(FW/2 + 3, -FD/2 - 1.5, 4.5); tree(FW/2 + 5.5, -FD/2 - 3.5, 5.5);
+
+  // Click targets for active floors
+  F.forEach(fd => {
+    if (!fd.id) return;
+    const target = new THREE.Mesh(new THREE.BoxGeometry(FW, fd.h, FD), new THREE.MeshBasicMaterial({ visible: false }));
+    target.position.y = fd.yB + fd.h/2;
+    target.userData.floorId = fd.id;
+    g.add(target); clickTargets.push(target);
+    // Soft glow volume in the floor's accent color, faded in on hover
+    const glow = new THREE.Mesh(
+      new THREE.BoxGeometry(FW, fd.h, FD),
+      new THREE.MeshBasicMaterial({ color: fd.col.color.clone(), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })
+    );
+    glow.position.y = fd.yB + fd.h/2;
+    glow.userData.accent = fd.col.color.clone();
+    g.add(glow); buildingHighlights[fd.id] = glow;
+  });
+
+  g.visible = true;
+  groups.building = g;
+  scene.add(g);
+}
+buildBuilding();
+
+// ---- Scaled miniatures inside each building floor ----
+// Clone each machine group, scale it down, drop it into the floor slot. Use ONE
+// shared neutral material so the building overview stays calm/"basic" — status
+// colors (amber/red) live in the floor views and the hover dashboard, not here.
+const FLOOR_MINI_SCALE = 0.36;
+const miniMat = lm(0x4ee5ff, 0.6);
+function buildFloorMiniatures() {
+  const LH = 3, FH = 5;
+  LAYOUT.floors.forEach((floor, fi) => {
+    const yB = LH + FH * fi;
+    const container = new THREE.Group();
+    container.scale.setScalar(FLOOR_MINI_SCALE);
+    container.position.set(0, yB + 0.1, 0);
+    floor.machines.forEach(m => {
+      const src = machineObjects[m.id]; if (!src) return;
+      const clone = src.clone(true);
+      clone.traverse(c => { if (c.isLineSegments) c.material = miniMat; });
+      container.add(clone);
+    });
+    groups.building.add(container);
+  });
+}
+buildFloorMiniatures();
+
+// =============================================================================
+//   SECTION 9 — HUD
+//   Updates corner overlays per view.
+// =============================================================================
+
+const HUDS = {
+  building: {
+    tl: `<span class="label">facility</span><span class="v">PLANT 07 · SECTION</span><div class="row"><span class="label">view</span><span class="dot"></span><span class="v">cross-section</span></div>`,
+    tr: `<span class="label">levels</span><span class="v">L00 · LOBBY</span><div class="row"><span class="f1">L01 · SORTING</span></div><div class="row"><span class="f2">L02 · BOTTLING</span></div><div class="row"><span class="f3">L03 · ASSEMBLY</span></div><div class="row"><span class="f4">L04 · FACTORY</span></div>`,
+    bl: `<span class="label">interact</span>drag · tap a lit floor`,
+    br: `<span class="label">render</span><span class="v">wireframe · section</span>`
+  }
+};
+function buildFloorHud(floor) {
+  const machineCount = floor.machines.length;
+  const runningCount = floor.machines.filter(m => (state.telemetry[m.id] || {}).status === 'running').length;
+  return {
+    tl: `<span class="label">floor</span><span class="v">${floor.name.toUpperCase()}</span><div class="row"><span class="label">status</span><span class="dot" style="background:var(--running)"></span><span class="v">${runningCount} / ${machineCount} running</span></div>`,
+    tr: `<span class="label">machines</span><span class="v">${machineCount} ONLINE</span><div class="row"><span class="label">facility</span><span class="v">PLANT-07</span></div>`,
+    bl: `<span class="label">interact</span>drag · tap a machine`,
+    br: `<span class="label">render</span><span class="v">wireframe · live</span>`
+  };
+}
+function updateHud() {
+  let h;
+  if (state.currentView === 'building') h = HUDS.building;
+  else {
+    const floor = LAYOUT.floors.find(f => f.id === state.currentView);
+    h = floor ? buildFloorHud(floor) : HUDS.building;
+  }
+  document.getElementById('hud-tl').innerHTML = h.tl;
+  document.getElementById('hud-tr').innerHTML = h.tr;
+  document.getElementById('hud-bl').innerHTML = h.bl;
+  document.getElementById('hud-br').innerHTML = h.br;
+}
+
+// =============================================================================
+//   SECTION 10 — FLOATING BADGES
+//   Project each machine's 3D position to 2D screen, position HTML element.
+//   Only renders for machines on the current floor.
+// =============================================================================
+
+const badgesContainer = document.getElementById('badges');
+const badgeElements = {}; // machineId -> div
+
+function rebuildBadges() {
+  badgesContainer.innerHTML = '';
+  Object.keys(badgeElements).forEach(k => delete badgeElements[k]);
+  if (state.currentView === 'building') return;
+  const floor = LAYOUT.floors.find(f => f.id === state.currentView);
+  if (!floor) return;
+  floor.machines.forEach(m => {
+    // Show badges only for "point" machines (have explicit position), not linear conveyors
+    if (!m.position) return;
+    const div = document.createElement('div');
+    div.className = 'badge';
+    div.dataset.machineId = m.id;
+    div.addEventListener('click', (e) => { e.stopPropagation(); setSelected(m.id); });
+    badgesContainer.appendChild(div);
+    badgeElements[m.id] = div;
+  });
+  updateBadgeContents();
+}
+
+function updateBadgeContents() {
+  Object.entries(badgeElements).forEach(([id, div]) => {
+    const t = state.telemetry[id]; if (!t) return;
+    const col = STATUS_COLORS[t.status];
+    div.style.color = col;
+    const alert = t.status === 'error' || t.status === 'maintenance';
+    const expanded = state.selectedId === id;   // full label (ID + status) only when clicked
+    div.className = 'badge' + (expanded ? '' : ' compact') + (alert ? ' alert' : '');
+    div.innerHTML = `<span class="badge-dot"></span><span class="badge-id">${id}</span><span class="badge-status">${STATUS_LABELS[t.status]}</span>`;
+  });
+}
+
+const tmpVec = new THREE.Vector3();
+function updateBadgePositions() {
+  if (state.currentView === 'building') return;
+  Object.entries(badgeElements).forEach(([id, div]) => {
+    const hb = machineHitboxes[id], obj = machineObjects[id];
+    if (!hb && !obj) return;
+    // Anchor on the machine's center so the dot sits ON the machine at any zoom
+    if (hb) tmpVec.copy(hb.position); else obj.getWorldPosition(tmpVec);
+    const dist = camera.position.distanceTo(tmpVec);
+    tmpVec.project(camera);
+    if (tmpVec.z >= 1) { div.style.display = 'none'; return; }   // behind the camera
+    const tel = state.telemetry[id];
+    const expanded = state.selectedId === id;
+    const isAlert = tel && (tel.status === 'error' || tel.status === 'maintenance');
+    // Healthy dots shrink + fade with distance; alerts and the selected one stay full
+    const scale = (expanded || isAlert) ? 1 : Math.max(0.5, Math.min(1.4, 26 / dist));
+    const opacity = (expanded || isAlert) ? 1 : Math.max(0.4, Math.min(1, 1.4 - dist / 110));
+    const anchor = expanded ? 'translate(-50%,-120%)' : 'translate(-50%,-50%)';
+    div.style.display = 'block';
+    div.style.left = `${(tmpVec.x * 0.5 + 0.5) * innerWidth}px`;
+    div.style.top = `${(1 - (tmpVec.y * 0.5 + 0.5)) * innerHeight}px`;
+    div.style.transform = `${anchor} scale(${scale.toFixed(2)})`;
+    div.style.opacity = String(opacity);
+    div.style.zIndex = String(Math.round((1 - tmpVec.z) * 1000));   // nearer dots on top
+  });
+}
+
+// =============================================================================
+//   SECTION 11 — SIDE PANEL
+//   Opens when a machine is selected. Shows telemetry + control buttons.
+// =============================================================================
+
+const panelEl = document.getElementById('panel');
+
+/** Build an inline SVG sparkline from a machine's history ring buffer. */
+function sparkline(hist, key, color) {
+  const data = (hist || []).map(s => s[key]).filter(v => typeof v === 'number');
+  if (data.length < 2) return `<div class="log-empty">collecting data…</div>`;
+  const w = 300, h = 40, n = data.length;
+  let min = Math.min(...data), max = Math.max(...data);
+  if (max - min < 1e-6) max = min + 1;
+  const pts = data.map((v, i) =>
+    `${(i / (n - 1) * w).toFixed(1)},${(h - (v - min) / (max - min) * h).toFixed(1)}`
+  ).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+function healthColor(h) { return h >= 80 ? '#5ec8ff' : h >= 50 ? '#ffb84e' : '#ff5e5e'; }
+function metricSeverity(metric, v) {
+  const th = THRESHOLDS[metric]; if (!th) return null;
+  return v >= th.critical ? 'critical' : v >= th.warning ? 'warning' : null;
+}
+/** Sparkline for one joint metric: fixed scale + warning/critical threshold lines. */
+function metricSpark(hist, key) {
+  const th = THRESHOLDS[key];
+  const data = (hist || []).map(s => s[key]).filter(v => typeof v === 'number');
+  if (data.length < 2) return `<div class="log-empty">collecting…</div>`;
+  const w = 300, h = 38, n = data.length, max = th.critical * 1.25;
+  const Y = v => (h - Math.min(v, max) / max * h).toFixed(1);
+  const pts = data.map((v, i) => `${(i / (n - 1) * w).toFixed(1)},${Y(v)}`).join(' ');
+  const last = data[data.length - 1];
+  const col = last >= th.critical ? SEVERITY_COLORS.critical : last >= th.warning ? SEVERITY_COLORS.warning : '#5ec8ff';
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <line x1="0" x2="${w}" y1="${Y(th.warning)}" y2="${Y(th.warning)}" stroke="${SEVERITY_COLORS.warning}" stroke-dasharray="4 3" opacity="0.45" vector-effect="non-scaling-stroke"/>
+    <line x1="0" x2="${w}" y1="${Y(th.critical)}" y2="${Y(th.critical)}" stroke="${SEVERITY_COLORS.critical}" stroke-dasharray="4 3" opacity="0.55" vector-effect="non-scaling-stroke"/>
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+function renderPanel() {
+  if (!state.selectedId) { panelEl.classList.remove('open'); return; }
+  let machine = null, floor = null;
+  for (const f of LAYOUT.floors) {
+    const m = f.machines.find(x => x.id === state.selectedId);
+    if (m) { machine = m; floor = f; break; }
+  }
+  if (!machine) { panelEl.classList.remove('open'); return; }
+  const t = state.telemetry[machine.id] || {};
+  panelEl.style.color = STATUS_COLORS[t.status];
+  // Event log (status transitions) — shown for every machine
+  const evs = state.events.filter(e => e.id === machine.id).slice(0, 6);
+  const logHtml = evs.length ? evs.map(e => {
+    const c = STATUS_COLORS[e.to] || '#4ee5ff';
+    return `<div class="log-row" style="border-color:${c};color:${c}"><span class="t">${fmtTime(e.t)}</span><span class="m">${STATUS_LABELS[e.from] || '—'} → ${STATUS_LABELS[e.to] || '—'}</span></div>`;
+  }).join('') : `<div class="log-empty">No recent events</div>`;
+  const header = `
+    <button class="panel-close" onclick="setSelected(null)">×</button>
+    <div class="panel-id">${machine.id}</div>
+    <div class="panel-label">${machine.label || machine.id}</div>`;
+  const statusBar = `<div class="panel-status"><span class="panel-status-dot"></span><span>${STATUS_LABELS[t.status]}</span></div>`;
+
+  if (t.joints) {
+    // ---- Robot-arm view (RoboLink schema) ----
+    const hcol = healthColor(t.health_score || 0);
+    const jointRows = [1,2,3,4,5,6].map(j => {
+      const jt = t.joints[j]; if (!jt) return '';
+      const sc = jt.score || 0;
+      const chips = JOINT_METRICS.map(metric => {
+        const v = jt[metric] || 0, sev = metricSeverity(metric, v);
+        const c = sev ? SEVERITY_COLORS[sev] : '#8aa3ad';
+        const lbl = { temperature: 'T', torque: 'τ', vibration: 'V', current: 'A' }[metric];
+        const dec = (metric === 'vibration' || metric === 'current') ? 1 : 0;
+        return `<span class="jchip" style="color:${c}">${lbl} ${v.toFixed(dec)}</span>`;
+      }).join('');
+      return `<div class="joint-row"><span class="joint-id">J${j}</span><span class="joint-bar"><span style="width:${sc}%;background:${healthColor(sc)}"></span></span><span class="joint-metrics">${chips}</span></div>`;
+    }).join('');
+    const alarmHtml = (t.alarms && t.alarms.length)
+      ? t.alarms.slice(0, 6).map(a => {
+          const c = SEVERITY_COLORS[a.severity] || '#5ec8ff';
+          return `<div class="alarm-row" style="border-color:${c};color:${c}"><span class="sev">${a.severity}</span><span class="amsg">J${a.joint_id} ${a.metric} · ${(+a.value).toFixed(1)} <span style="opacity:.5">(thr ${a.threshold})</span></span></div>`;
+        }).join('')
+      : `<div class="log-empty">No active alarms</div>`;
+    const p = t.prediction;
+    const predHtml = p
+      ? `<div class="pred-head">Joint ${p.joint_id} · ${p.metric}</div>
+         <div class="pred-big">${p.days_to_failure.toFixed(1)} <span>days to failure</span></div>
+         <div class="pred-sub">${(p.confidence*100).toFixed(0)}% confidence · now ${p.current_value} / crit ${p.critical_threshold}</div>
+         <div class="pred-bar"><span style="width:${Math.min(100, p.current_value / p.critical_threshold * 100).toFixed(0)}%"></span></div>`
+      : `<div class="log-empty">No failure predicted</div>`;
+    // AI diagnosis (populated by the live RoboLink feed; absent under mock data)
+    const d = t.diagnosis;
+    const diagHtml = d && d.diagnosis
+      ? `<div class="diag-text">${d.diagnosis}</div><div class="diag-meta">${d.model || 'AI'}${d.latency_ms ? ' · ' + Math.round(d.latency_ms) + 'ms' : ''} · Joint ${d.joint_id}</div>`
+      : '';
+    const trends = JOINT_METRICS.map(metric => `
+      <div class="metric-spark">${metricSpark(state.history[machine.id], metric)}
+        <div class="ms-l"><span>${metric} (max joint)</span><span>${THRESHOLDS[metric].unit}</span></div>
+      </div>`).join('');
+    panelEl.innerHTML = `${header}
+      <div class="panel-type">${(t.vendor || '').toUpperCase()} ${t.model || ''} · ${floor.name}</div>
+      ${statusBar}
+      <div class="panel-section"><div class="panel-section-title">ROBOT HEALTH</div>
+        <div class="health-row">
+          <div class="health-num" style="color:${hcol}">${(t.health_score || 0).toFixed(0)}<span>/100</span></div>
+          <div class="health-meta"><div>safety · ${(t.safety_state || 'normal').replace('_', ' ')}</div><div>6 joints</div></div>
+        </div>
+      </div>
+      <div class="panel-section"><div class="panel-section-title">JOINTS</div>${jointRows}</div>
+      <div class="panel-section"><div class="panel-section-title">SENSOR TRENDS · LAST ${HISTORY_LEN}</div>${trends}</div>
+      <div class="panel-section"><div class="panel-section-title">ALARMS</div>${alarmHtml}</div>
+      <div class="panel-section"><div class="panel-section-title">PREDICTION</div>${predHtml}</div>
+      ${diagHtml ? `<div class="panel-section"><div class="panel-section-title">AI DIAGNOSIS</div>${diagHtml}</div>` : ''}
+      <div class="panel-section"><div class="panel-section-title">EVENT LOG</div><div class="panel-log">${logHtml}</div></div>`;
+  } else {
+    // ---- Generic machine view (non-arm) ----
+    const col = STATUS_COLORS[t.status];
+    panelEl.innerHTML = `${header}
+      <div class="panel-type">${TYPE_LABELS[machine.type] || machine.type} · ${floor.name}</div>
+      ${statusBar}
+      <div class="panel-section"><div class="panel-section-title">TELEMETRY</div>
+        <div class="panel-grid">
+          <div class="panel-cell"><div class="panel-cell-l">Health</div><div class="panel-cell-v" style="color:${healthColor(t.health_score || 0)}">${(t.health_score || 0).toFixed(0)}</div></div>
+          <div class="panel-cell"><div class="panel-cell-l">Utilization</div><div class="panel-cell-v">${((t.utilization || 0) * 100).toFixed(0)}%</div></div>
+          <div class="panel-cell"><div class="panel-cell-l">Temp</div><div class="panel-cell-v">${(t.temperature || 0).toFixed(1)}°C</div></div>
+          <div class="panel-cell"><div class="panel-cell-l">RPM</div><div class="panel-cell-v">${Math.round(t.rpm || 0)}</div></div>
+        </div>
+      </div>
+      <div class="panel-section"><div class="panel-section-title">UTILIZATION · LAST ${HISTORY_LEN}</div>
+        <div class="panel-spark">${sparkline(state.history[machine.id], 'u', col)}<div class="panel-spark-l"><span>util</span><span>${((t.utilization || 0) * 100).toFixed(0)}%</span></div></div>
+      </div>
+      <div class="panel-section"><div class="panel-section-title">EVENT LOG</div><div class="panel-log">${logHtml}</div></div>
+      <div class="panel-section"><div class="panel-section-title">CONTROLS</div>
+        <div class="panel-ctrls">
+          <button onclick="updateTelemetry('${machine.id}',{status:'running'})">Run</button>
+          <button onclick="updateTelemetry('${machine.id}',{status:'idle'})">Idle</button>
+          <button onclick="updateTelemetry('${machine.id}',{status:'maintenance'})">Maint</button>
+          <button onclick="updateTelemetry('${machine.id}',{status:'offline'})">Offline</button>
+        </div>
+      </div>`;
+  }
+  panelEl.classList.add('open');
+}
+window.setSelected = setSelected; // expose for onclick
+window.updateTelemetry = updateTelemetry;
+
+// =============================================================================
+//   SECTION 12 — VIEW MANAGEMENT
+// =============================================================================
+
+const camConfigs = {
+  building: { r: 95, lookY: 11, lookX: 0, lookZ: 0, yaw: 0.18, pitch: 0.08 },
+  floor1:   { r: 50, lookY: 1, lookX: 5, lookZ: 0, yaw: 0.8, pitch: 0.55 },
+  floor2:   { r: 35, lookY: 2, lookX: 0, lookZ: 0, yaw: 0.7, pitch: 0.45 },
+  floor3:   { r: 45, lookY: 2.5, lookX: 0, lookZ: 0, yaw: 0.9, pitch: 0.42 },
+  floor4:   { r: 45, lookY: 2.5, lookX: 0, lookZ: 0, yaw: 0.85, pitch: 0.5 }
+};
+let yaw = camConfigs.building.yaw, pitch = camConfigs.building.pitch;
+let radius = camConfigs.building.r;   // current orbit distance (mutated by zoom)
+let auto = 0, lastT = performance.now();
+
+// Zoom = scale the orbit radius. Clamp relative to each view's default `r`
+// so every floor + the building keep sensible near/far limits.
+const ZOOM_MIN = 0.4, ZOOM_MAX = 3.0;
+function zoomBy(factor) {
+  const base = camConfigs[state.currentView].r;
+  radius = Math.max(base * ZOOM_MIN, Math.min(base * ZOOM_MAX, radius * factor));
+  lastT = performance.now();   // pause idle auto-rotate while interacting
+}
+
+function showView(name) {
+  Object.entries(groups).forEach(([k, g]) => { g.visible = (k === name); });
+  state.currentView = name;
+  const cfg = camConfigs[name]; yaw = cfg.yaw; pitch = cfg.pitch; radius = cfg.r; auto = 0; lastT = performance.now();
+  document.getElementById('backBtn').style.display = (name === 'building') ? 'none' : 'block';
+  document.getElementById('hint').style.display = (name === 'building') ? 'block' : 'none';
+  setSelected(null);
+  updateHud();
+  rebuildBadges();
+}
+document.getElementById('backBtn').addEventListener('click', e => { e.stopPropagation(); showView('building'); });
+// Esc returns to the building view (or closes an open panel first)
+addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (state.selectedId) setSelected(null);
+  else if (state.currentView !== 'building') showView('building');
+});
+
+// =============================================================================
+//   SECTION 13 — INPUT (drag + tap + raycast)
+// =============================================================================
+
+let dragging = false, downX = 0, downY = 0, px = 0, py = 0, moved = false;
+const TAP_PX = 6;
+const raycaster = new THREE.Raycaster();
+function dn(x, y) { dragging = true; downX = px = x; downY = py = y; moved = false; lastT = performance.now(); }
+function mv(x, y) {
+  if (!dragging) return;
+  if (Math.hypot(x - downX, y - downY) > TAP_PX) moved = true;
+  yaw += (x - px) * 0.006; pitch += (y - py) * 0.005;
+  pitch = Math.max(0.05, Math.min(Math.PI/2 - 0.05, pitch));
+  px = x; py = y; lastT = performance.now();
+}
+function up(x, y) {
+  if (dragging && !moved) handleTap(x, y);
+  dragging = false;
+}
+function handleTap(x, y) {
+  const mouse = new THREE.Vector2((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(mouse, camera);
+  if (state.currentView === 'building') {
+    const hits = raycaster.intersectObjects(clickTargets);
+    if (hits.length > 0) showView(hits[0].object.userData.floorId);
+  } else {
+    // In floor view, raycast against the invisible per-machine hitboxes
+    const floor = LAYOUT.floors.find(f => f.id === state.currentView);
+    if (!floor) return;
+    const targets = floor.machines.map(m => machineHitboxes[m.id]).filter(Boolean);
+    const hits = raycaster.intersectObjects(targets, false);
+    if (hits.length > 0) setSelected(hits[0].object.userData.machineId);
+    else setSelected(null);
+  }
+}
+const cv = renderer.domElement;
+
+// Hover-highlight floors in the building view
+let hoveredFloor = null;
+const floorDashEl = document.getElementById('floor-dash');
+const dashVec = new THREE.Vector3();
+
+// Per-floor status rollup for the hover dashboard
+function floorStats(floor) {
+  const counts = { running: 0, idle: 0, maintenance: 0, error: 0, offline: 0 };
+  const alerts = [];
+  floor.machines.forEach(m => {
+    const t = state.telemetry[m.id] || {};
+    if (counts[t.status] !== undefined) counts[t.status]++;
+    if (t.status === 'error' || t.status === 'maintenance') alerts.push({ id: m.id, status: t.status });
+  });
+  return { total: floor.machines.length, counts, alerts };
+}
+function updateFloorDash() {
+  if (state.currentView !== 'building' || !hoveredFloor) { floorDashEl.style.display = 'none'; return; }
+  const floor = LAYOUT.floors.find(f => f.id === hoveredFloor);
+  if (!floor) { floorDashEl.style.display = 'none'; return; }
+  const s = floorStats(floor);
+  const chips = Object.entries(s.counts).filter(([, v]) => v > 0).map(([k, v]) =>
+    `<span class="fd-chip"><span class="fd-dot" style="background:${STATUS_COLORS[k]}"></span>${v} ${k}</span>`).join('');
+  const alertHtml = s.alerts.length
+    ? s.alerts.slice(0, 4).map(a => `<div class="fd-alert" style="color:${STATUS_COLORS[a.status]}">${a.id} · ${a.status}</div>`).join('')
+      + (s.alerts.length > 4 ? `<div class="fd-alert fd-nominal">+${s.alerts.length - 4} more</div>` : '')
+    : `<div class="fd-alert fd-nominal">all nominal</div>`;
+  floorDashEl.innerHTML =
+    `<div class="fd-name">${floor.name}</div>
+     <div class="fd-sub">${s.total} machines · ${s.counts.running} running</div>
+     <div class="fd-chips">${chips}</div>
+     <div class="fd-ttl">alerts</div>${alertHtml}`;
+  floorDashEl.style.display = 'block';
+}
+function updateHover(x, y) {
+  if (state.currentView !== 'building') { hoveredFloor = null; cv.style.cursor = ''; updateFloorDash(); return; }
+  const mouse = new THREE.Vector2((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(clickTargets);
+  hoveredFloor = hits.length ? hits[0].object.userData.floorId : null;
+  cv.style.cursor = (hoveredFloor && !dragging) ? 'pointer' : '';
+  updateFloorDash();
+}
+
+cv.addEventListener('mousedown', e => dn(e.clientX, e.clientY));
+addEventListener('mousemove', e => { mv(e.clientX, e.clientY); updateHover(e.clientX, e.clientY); });
+addEventListener('mouseup', e => up(e.clientX, e.clientY));
+// Scroll wheel / trackpad zoom (smooth, multiplicative)
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY * 0.001)); }, { passive: false });
+// Zoom buttons
+document.getElementById('zoomIn').addEventListener('click', () => zoomBy(1 / 1.2));
+document.getElementById('zoomOut').addEventListener('click', () => zoomBy(1.2));
+
+// Touch: one finger orbits, two fingers pinch-zoom
+let pinchDist = 0;
+const touchDist = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+cv.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length === 2) { pinchDist = touchDist(e); dragging = false; }
+  else { const t = e.touches[0]; dn(t.clientX, t.clientY); }
+}, { passive: false });
+addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    const d = touchDist(e);
+    if (pinchDist) zoomBy(pinchDist / d);   // fingers apart -> zoom in
+    pinchDist = d;
+  } else if (e.touches[0]) { e.preventDefault(); mv(e.touches[0].clientX, e.touches[0].clientY); }
+}, { passive: false });
+addEventListener('touchend', e => {
+  if (e.touches.length < 2) pinchDist = 0;
+  const t = e.changedTouches[0]; if (t) up(t.clientX, t.clientY);
+});
+
+// =============================================================================
+//   SECTION 14 — DATA: live RoboLink WebSocket (with mock fallback)
+//   Connects to ws://<host>:8000/ws. Mock keeps the scene alive until/unless
+//   real data arrives, so the dashboard demos with or without the backend.
+//   Everything routes through updateTelemetry(id, patch) — UI reacts via pub/sub.
+// =============================================================================
+
+const STATUSES = ['running','running','running','running','idle','maintenance','error'];
+let _alarmSeq = 0;
+
+function pushAlarm(arr, robotId, jointId, metric, severity, value, threshold) {
+  arr.push({
+    alarm_id: 'ALM-' + String(++_alarmSeq).padStart(4, '0'),
+    robot_id: robotId, joint_id: jointId, metric, severity,
+    message: `${robotId} Joint ${jointId}: ${metric} ${severity === 'critical' ? 'critical' : 'elevated'} (${value.toFixed(1)})`,
+    value: +value.toFixed(2), threshold, timestamp: Date.now() / 1000, resolved: false
+  });
+}
+
+// Simulate a robot arm: per-joint sensors -> joint scores -> health -> alarms ->
+// status -> prediction. Produces telemetry in the exact RoboLink WebSocket shape.
+function simArm(id, t) {
+  const prof = simProfiles[id];
+  const joints = {};
+  for (let j = 1; j <= 6; j++) {
+    const ph = t * 1.5 + prof.seed + j;
+    joints[j] = {
+      joint_id: j,
+      position: +(Math.sin(ph) * 1.5).toFixed(3),
+      velocity: +(Math.cos(ph) * 0.8).toFixed(3),
+      torque: 30 + Math.sin(ph * 0.7) * 8 + Math.random() * 4,
+      temperature: 42 + Math.sin(ph) * 2 + Math.random() * 1.5,
+      current: 3 + Math.random() * 0.8,
+      vibration: 1.5 + Math.random() * 0.6,
+      error_code: 0, score: 100
+    };
+  }
+  if (prof.behavior === 'degrading') {
+    const wear = (Math.sin(t * 0.04 + prof.seed) + 1) / 2;   // slow 0..1 cycle on Joint 3
+    joints[3].temperature = 55 + wear * 32;   // crosses 65 warn, 80 crit
+    joints[3].vibration   = 2.5 + wear * 5.5; // crosses 4 warn, 7 crit
+    joints[3].torque      = 60 + wear * 80;   // up to 140
+  } else if (prof.behavior === 'anomaly' && Math.random() < 0.12) {
+    const k = 1 + Math.floor(Math.random() * 6);
+    joints[k].vibration = 5 + Math.random() * 3;
+    joints[k].temperature = 66 + Math.random() * 18;
+    joints[k].current = 7.5 + Math.random() * 2;
+  }
+  // Score joints + collect alarms (RoboLink: min*0.4 + avg*0.6)
+  const alarms = [];
+  let minScore = 100, sum = 0;
+  for (let j = 1; j <= 6; j++) {
+    const jt = joints[j]; let score = 100;
+    JOINT_METRICS.forEach(metric => {
+      const th = THRESHOLDS[metric], v = jt[metric];
+      if (v >= th.critical) { score -= 45; pushAlarm(alarms, id, j, metric, 'critical', v, th.critical); }
+      else if (v >= th.warning) { score -= 18; pushAlarm(alarms, id, j, metric, 'warning', v, th.warning); }
+    });
+    jt.score = +Math.max(0, score).toFixed(1);
+    minScore = Math.min(minScore, jt.score); sum += jt.score;
+  }
+  const health_score = +(minScore * 0.4 + (sum / 6) * 0.6).toFixed(1);
+  const status = health_score < 50 ? 'error' : health_score < 80 ? 'maintenance' : 'running';
+  const safety_state = health_score < 50 ? 'protective_stop' : 'normal';
+  // Prediction: project days-to-failure for a heating degrading joint
+  let prediction = null;
+  if (prof.behavior === 'degrading' && joints[3].temperature > THRESHOLDS.temperature.warning) {
+    const cur = joints[3].temperature, crit = THRESHOLDS.temperature.critical, slope = 0.0012;
+    prediction = {
+      robot_id: id, joint_id: 3, metric: 'temperature',
+      days_to_failure: +Math.max(0.5, (crit - cur) / (slope * 12960)).toFixed(1),  // repo time-compression
+      confidence: +(0.78 + Math.random() * 0.15).toFixed(2), trend_slope: slope,
+      current_value: +cur.toFixed(1), critical_threshold: crit
+    };
+  }
+  updateTelemetry(id, { joints, alarms, health_score, status, safety_state, prediction });
+}
+
+// Simulate a non-arm machine: lighter telemetry, occasional status flips.
+function simMachine(id, t) {
+  const tel = state.telemetry[id];
+  if (Math.random() < 0.04) updateTelemetry(id, { status: STATUSES[Math.floor(Math.random() * STATUSES.length)] });
+  if (state.telemetry[id].status === 'running') {
+    updateTelemetry(id, {
+      partsProcessed: (tel.partsProcessed || 0) + Math.floor(1 + Math.random() * 3),
+      utilization: 0.6 + Math.random() * 0.35, temperature: 34 + Math.random() * 12,
+      rpm: 1050 + Math.random() * 320, health_score: 80 + Math.random() * 20
+    });
+  }
+}
+
+// ---- Mock loop (fallback / offline demo) ----
+const _t0 = performance.now();
+let _mockTimer = null;
+function startMock() {
+  if (_mockTimer) return;
+  _mockTimer = setInterval(() => {
+    const t = (performance.now() - _t0) / 1000;
+    Object.keys(state.telemetry).forEach(id => {
+      if (state.telemetry[id].joints) simArm(id, t); else simMachine(id, t);
+    });
+  }, 1000);
+}
+function stopMock() { if (_mockTimer) { clearInterval(_mockTimer); _mockTimer = null; } }
+
+// ---- Live RoboLink WebSocket client ----
+// The 3 backend robots (Robot1..3) map onto 3 arm machines in our LAYOUT.
+const ROBOT_MAP = { Robot1: 'ARM-01', Robot2: 'ARM-02', Robot3: 'ARM-03' };
+const RL_WS_URL = `ws://${location.hostname || 'localhost'}:8000/ws`;
+const _diagByRobot = {};   // robot_id -> latest AI diagnosis
+
+function statusFromHealth(h, raw) {
+  if (raw === 'stopped' || raw === 'offline') return 'offline';
+  if (raw === 'error') return 'error';
+  return h < 50 ? 'error' : h < 80 ? 'maintenance' : 'running';
+}
+function applyRoboLinkUpdate(data) {
+  if (data.diagnosis && data.diagnosis.robot_id) _diagByRobot[data.diagnosis.robot_id] = data.diagnosis;
+  const alarmsByRobot = {}, predByRobot = {};
+  (data.alarms || []).forEach(a => (alarmsByRobot[a.robot_id] ||= []).push(a));
+  (data.predictions || []).forEach(p => { if (!predByRobot[p.robot_id]) predByRobot[p.robot_id] = p; });
+  Object.values(data.robots || {}).forEach(r => {
+    const id = ROBOT_MAP[r.robot_id];
+    if (!id || !state.telemetry[id]) return;
+    updateTelemetry(id, {
+      vendor: r.vendor, model: r.model, joints: r.joints, health_score: r.health_score,
+      safety_state: r.safety_state || 'normal', status: statusFromHealth(r.health_score, r.status),
+      alarms: alarmsByRobot[r.robot_id] || [], prediction: predByRobot[r.robot_id] || null,
+      diagnosis: _diagByRobot[r.robot_id] || null
+    });
+  });
+}
+function applyDiagnosis(d) {
+  if (!d || !d.robot_id) return;
+  _diagByRobot[d.robot_id] = d;
+  const id = ROBOT_MAP[d.robot_id];
+  if (id && state.telemetry[id]) updateTelemetry(id, { diagnosis: d });
+}
+
+// Start mock immediately for instant life; upgrade to live when the backend
+// sends data; fall back to mock if the socket drops. Reconnect with backoff.
+function startSimulator() {              // name kept so BOOT (Section 15) is unchanged
+  startMock();
+  let live = false, backoff = 1000;
+  const connect = () => {
+    let ws;
+    try { ws = new WebSocket(RL_WS_URL); } catch (_) { return; }
+    ws.onopen = () => { backoff = 1000; };
+    ws.onmessage = e => {
+      if (!live) { live = true; stopMock(); console.info('RoboLink: live data connected'); }
+      let data; try { data = JSON.parse(e.data); } catch (_) { return; }
+      if (data.type === 'diagnosis') applyDiagnosis(data);
+      else applyRoboLinkUpdate(data);
+    };
+    ws.onerror = () => ws.close();
+    ws.onclose = () => {
+      if (live) { live = false; startMock(); }
+      setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 30000);
+    };
+  };
+  connect();
+}
+
+// =============================================================================
+//   SECTION 15 — BOOT
+// =============================================================================
+
+subscribe(() => { updateBadgeContents(); updateMachineColors(); renderPanel(); updateHud(); updateFloorDash(); });
+
+showView('building');
+startSimulator();
+
+const clock = new THREE.Clock();
+function frame() {
+  requestAnimationFrame(frame);
+  const t = clock.getElapsedTime();
+  if (animators[state.currentView]) animators[state.currentView](t);
+  // Pulse machines in error so a fault grabs attention on the floor itself
+  if (state.currentView !== 'building') {
+    const fl = LAYOUT.floors.find(f => f.id === state.currentView);
+    if (fl) fl.machines.forEach(m => {
+      const tel = state.telemetry[m.id], obj = machineObjects[m.id];
+      if (tel && tel.status === 'error' && obj && obj.userData.statusMats) {
+        const o = 0.45 + 0.5 * Math.abs(Math.sin(t * 4));
+        obj.userData.statusMats.forEach(mat => { mat.opacity = o; });
+      }
+    });
+  } else {
+    // Building view: softly fade the hovered floor's accent glow in (others out).
+    for (const id in buildingHighlights) {
+      const glow = buildingHighlights[id];
+      const target = (id === hoveredFloor) ? 0.24 + 0.06 * Math.sin(t * 3) : 0;
+      glow.material.opacity += (target - glow.material.opacity) * 0.15;
+    }
+    // Anchor to the building's central vertical axis (world x=0), which projects
+    // to a fixed screen-x no matter how the building is rotated, then offset right
+    // by a fixed amount to sit just beside it. Vertical follows the hovered floor.
+    if (hoveredFloor && buildingHighlights[hoveredFloor] && floorDashEl.style.display !== 'none') {
+      dashVec.set(0, buildingHighlights[hoveredFloor].position.y, 0).project(camera);
+      const cx = (dashVec.x * 0.5 + 0.5) * innerWidth;
+      const cy = (1 - (dashVec.y * 0.5 + 0.5)) * innerHeight;
+      floorDashEl.style.left = `${cx + 230}px`;
+      floorDashEl.style.top = `${Math.max(90, Math.min(innerHeight - 90, cy))}px`;
+    }
+  }
+  // Camera
+  if (performance.now() - lastT > 1500) auto += 0.0022;
+  const cfg = camConfigs[state.currentView];
+  const ry = yaw + auto;
+  camera.position.set(radius * Math.cos(pitch) * Math.sin(ry), radius * Math.sin(pitch) + 1, radius * Math.cos(pitch) * Math.cos(ry));
+  camera.lookAt(cfg.lookX, cfg.lookY, cfg.lookZ);
+  renderer.render(scene, camera);
+  updateBadgePositions();
+}
+frame();
+</script>
+</body>
+</html>
