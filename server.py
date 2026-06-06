@@ -1,0 +1,205 @@
+"""FastAPI backend -- REST API + WebSocket for dashboard.
+
+Connects to OPC-UA sim server, processes data through RoboLink core
+(formatter, monitor, alarms, prediction), broadcasts to dashboard.
+
+Usage: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import time
+from contextlib import asynccontextmanager
+
+import structlog
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from robolink.alarms import AlarmEngine
+from robolink.formatter import ObservationFormatter
+from robolink.monitor import RobotHealthMonitor
+from robolink.prediction import PredictionEngine
+from robolink.sources.opcua_source import OPCUASource
+from robolink.utils.logging import setup_logging
+
+setup_logging("INFO")
+log = structlog.get_logger()
+
+# Core components
+monitor = RobotHealthMonitor()
+alarms = AlarmEngine()
+predictions = PredictionEngine()
+formatter = ObservationFormatter()
+
+# WebSocket clients
+ws_clients: set[WebSocket] = set()
+
+# OPC-UA config
+OPCUA_ENDPOINT = "opc.tcp://localhost:4840/robolink/server"
+ROBOTS = {
+    "Robot1": {"vendor": "ur", "model": "UR10e", "joints": 6},
+    "Robot2": {"vendor": "kuka", "model": "KR-16", "joints": 6},
+    "Robot3": {"vendor": "abb", "model": "IRB-6700", "joints": 6},
+}
+METRICS = ["position", "velocity", "torque", "temperature", "current", "vibration"]
+NAMESPACE_IDX = 2  # asyncua default namespace index
+
+
+def parse_node_id(node_id: str) -> tuple[str, int, str] | None:
+    """Parse 'ns=2;s=Robot1_Joint3_temperature' -> (Robot1, 3, temperature)."""
+    try:
+        s_part = node_id.split(";s=")[1]
+        parts = s_part.split("_")
+        robot_id = parts[0]
+        joint_id = int(parts[1].replace("Joint", ""))
+        metric = parts[2]
+        return robot_id, joint_id, metric
+    except (IndexError, ValueError):
+        return None
+
+
+async def opcua_reader() -> None:
+    """Connect to OPC-UA sim server and process readings."""
+    # Build node map
+    all_nodes: list[str] = []
+    robot_node_map: dict[str, list[str]] = {}
+
+    for robot_id, config in ROBOTS.items():
+        robot_node_map[robot_id] = []
+        for j in range(1, config["joints"] + 1):
+            for metric in METRICS:
+                node_id = f"ns={NAMESPACE_IDX};s={robot_id}_Joint{j}_{metric}"
+                all_nodes.append(node_id)
+                robot_node_map[robot_id].append(node_id)
+
+    source = OPCUASource("sim", OPCUA_ENDPOINT, robot_node_map)
+
+    def on_reading(reading) -> None:
+        parsed = parse_node_id(reading.node_id)
+        if not parsed:
+            return
+        robot_id, joint_id, metric = parsed
+
+        # Update monitor
+        monitor.update_joint(robot_id, joint_id, metric, reading.value)
+        monitor.update_status(robot_id, "running")
+
+        # Evaluate alarms for threshold metrics
+        if metric in ("temperature", "torque", "vibration", "current"):
+            alarms.evaluate(robot_id, joint_id, metric, reading.value)
+            predictions.add_sample(robot_id, joint_id, metric, reading.value)
+
+    source.on_reading(on_reading)
+
+    log.info("opcua.connecting", endpoint=OPCUA_ENDPOINT)
+    await source.connect()
+    await source.subscribe(all_nodes)
+    log.info("opcua.ready", nodes=len(all_nodes))
+
+    # Keep connection alive
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        await source.disconnect()
+
+
+async def ws_broadcaster() -> None:
+    """Broadcast state to all WebSocket clients every 500ms."""
+    while True:
+        if ws_clients:
+            payload = json.dumps({
+                "type": "update",
+                "robots": monitor.to_dict(),
+                "alarms": alarms.to_list(),
+                "predictions": predictions.to_list(),
+                "timestamp": time.time(),
+            })
+            dead: set[WebSocket] = set()
+            for ws in ws_clients:
+                try:
+                    await ws.send_text(payload)
+                except Exception:
+                    dead.add(ws)
+            ws_clients -= dead
+        await asyncio.sleep(0.5)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start OPC-UA reader and WS broadcaster on startup."""
+    # Register robots
+    for robot_id, config in ROBOTS.items():
+        monitor.register_robot(robot_id, config["vendor"], config["model"], config["joints"])
+
+    reader_task = asyncio.create_task(opcua_reader())
+    broadcast_task = asyncio.create_task(ws_broadcaster())
+
+    log.info("server.started", robots=list(ROBOTS.keys()))
+    yield
+
+    reader_task.cancel()
+    broadcast_task.cancel()
+
+
+app = FastAPI(title="RoboLink API", version="0.1.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Serve dashboard
+try:
+    app.mount("/dashboard", StaticFiles(directory="dashboard", html=True), name="dashboard")
+except Exception:
+    pass  # dashboard dir may not exist yet
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket) -> None:
+    """WebSocket endpoint for real-time dashboard updates."""
+    await ws.accept()
+    ws_clients.add(ws)
+    log.info("ws.connected", total=len(ws_clients))
+    try:
+        while True:
+            await ws.receive_text()  # keep alive
+    except WebSocketDisconnect:
+        ws_clients.discard(ws)
+        log.info("ws.disconnected", total=len(ws_clients))
+
+
+@app.get("/api/robots")
+async def get_robots() -> dict:
+    """Get all robot states."""
+    return monitor.to_dict()
+
+
+@app.get("/api/alarms")
+async def get_alarms() -> list:
+    """Get active alarms."""
+    return alarms.to_list()
+
+
+@app.get("/api/alarms/history")
+async def get_alarm_history() -> list:
+    """Get alarm history."""
+    return alarms.history_list()
+
+
+@app.get("/api/predictions")
+async def get_predictions() -> list:
+    """Get failure predictions."""
+    return predictions.to_list()
+
+
+@app.get("/api/health")
+async def health_check() -> dict:
+    """Health check endpoint."""
+    return {"status": "ok", "robots": len(ROBOTS), "ws_clients": len(ws_clients)}
