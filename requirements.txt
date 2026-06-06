@@ -1,6 +1,6 @@
 asyncua>=2.0
 fastapi>=0.100
-uvicorn>=0.20
+uvicorn[standard]>=0.20
 structlog>=23.0
 numpy>=1.24
 openai>=1.0

@@ -191,7 +191,7 @@ async def _run_diagnosis(robot_id: str, joint_id: int, alarm) -> None:
                 await ws.send_text(payload)
             except Exception:
                 dead.add(ws)
-        ws_clients -= dead
+        ws_clients.difference_update(dead)
 
     log.info("diagnosis.broadcast", robot_id=robot_id, joint=joint_id)
 
@@ -214,7 +214,7 @@ async def ws_broadcaster() -> None:
                     await ws.send_text(payload)
                 except Exception:
                     dead.add(ws)
-            ws_clients -= dead
+            ws_clients.difference_update(dead)
         await asyncio.sleep(0.5)
 
 
