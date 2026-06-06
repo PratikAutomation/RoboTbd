@@ -1,6 +1,16 @@
 """Structured logging configuration."""
 
+import logging
+
 import structlog
+
+LEVEL_MAP = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -13,6 +23,6 @@ def setup_logging(level: str = "INFO") -> None:
             structlog.dev.ConsoleRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
-            structlog.get_level_from_name(level)
+            LEVEL_MAP.get(level.upper(), logging.INFO)
         ),
     )

@@ -22,7 +22,6 @@ from robolink.alarms import AlarmEngine
 from robolink.formatter import ObservationFormatter
 from robolink.monitor import RobotHealthMonitor
 from robolink.prediction import PredictionEngine
-from robolink.sources.opcua_source import OPCUASource
 from robolink.utils.logging import setup_logging
 
 setup_logging("INFO")
@@ -45,66 +44,84 @@ ROBOTS = {
     "Robot3": {"vendor": "abb", "model": "IRB-6700", "joints": 6},
 }
 METRICS = ["position", "velocity", "torque", "temperature", "current", "vibration"]
-NAMESPACE_IDX = 2  # asyncua default namespace index
-
-
-def parse_node_id(node_id: str) -> tuple[str, int, str] | None:
-    """Parse 'ns=2;s=Robot1_Joint3_temperature' -> (Robot1, 3, temperature)."""
-    try:
-        s_part = node_id.split(";s=")[1]
-        parts = s_part.split("_")
-        robot_id = parts[0]
-        joint_id = int(parts[1].replace("Joint", ""))
-        metric = parts[2]
-        return robot_id, joint_id, metric
-    except (IndexError, ValueError):
-        return None
+# Reverse lookup: numeric node id -> (robot_id, joint_id, metric)
+node_id_map: dict[str, tuple[str, int, str]] = {}
 
 
 async def opcua_reader() -> None:
-    """Connect to OPC-UA sim server and process readings."""
-    # Build node map
-    all_nodes: list[str] = []
-    robot_node_map: dict[str, list[str]] = {}
+    """Connect to OPC-UA sim server, browse tree, subscribe to all nodes."""
+    from asyncua import Client
 
-    for robot_id, config in ROBOTS.items():
-        robot_node_map[robot_id] = []
-        for j in range(1, config["joints"] + 1):
-            for metric in METRICS:
-                node_id = f"ns={NAMESPACE_IDX};s={robot_id}_Joint{j}_{metric}"
-                all_nodes.append(node_id)
-                robot_node_map[robot_id].append(node_id)
+    backoff = 1.0
+    while True:
+        try:
+            client = Client(url=OPCUA_ENDPOINT)
+            await client.connect()
+            log.info("opcua.connected", endpoint=OPCUA_ENDPOINT)
+            break
+        except Exception as e:
+            log.warning("opcua.connect_failed", error=str(e), retry_in=backoff)
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 30.0)
 
-    source = OPCUASource("sim", OPCUA_ENDPOINT, robot_node_map)
+    # Browse the tree to find all robot/joint/metric nodes
+    objects = client.nodes.objects
+    all_nodes = []
 
-    def on_reading(reading) -> None:
-        parsed = parse_node_id(reading.node_id)
-        if not parsed:
-            return
-        robot_id, joint_id, metric = parsed
+    for child in await objects.get_children():
+        name = (await child.read_browse_name()).Name
+        if name not in ROBOTS:
+            continue
+        robot_id = name
 
-        # Update monitor
-        monitor.update_joint(robot_id, joint_id, metric, reading.value)
-        monitor.update_status(robot_id, "running")
+        for joint_obj in await child.get_children():
+            jname = (await joint_obj.read_browse_name()).Name
+            if not jname.startswith("Joint"):
+                continue
+            joint_id = int(jname.replace("Joint", ""))
 
-        # Evaluate alarms for threshold metrics
-        if metric in ("temperature", "torque", "vibration", "current"):
-            alarms.evaluate(robot_id, joint_id, metric, reading.value)
-            predictions.add_sample(robot_id, joint_id, metric, reading.value)
+            for var_node in await joint_obj.get_children():
+                vname = (await var_node.read_browse_name()).Name
+                # vname = "Robot1_Joint1_temperature"
+                parts = vname.split("_")
+                if len(parts) == 3:
+                    metric = parts[2]
+                    if metric in METRICS:
+                        nid = var_node.nodeid.to_string()
+                        node_id_map[nid] = (robot_id, joint_id, metric)
+                        all_nodes.append(var_node)
 
-    source.on_reading(on_reading)
+    log.info("opcua.browsed", nodes=len(all_nodes))
 
-    log.info("opcua.connecting", endpoint=OPCUA_ENDPOINT)
-    await source.connect()
-    await source.subscribe(all_nodes)
-    log.info("opcua.ready", nodes=len(all_nodes))
+    # Subscribe to all discovered nodes
+    handler = _OPCUAHandler()
+    subscription = await client.create_subscription(50, handler)
+    await subscription.subscribe_data_change(all_nodes)
+    log.info("opcua.subscribed", nodes=len(all_nodes))
 
-    # Keep connection alive
     try:
         while True:
             await asyncio.sleep(1)
     except asyncio.CancelledError:
-        await source.disconnect()
+        await client.disconnect()
+
+
+class _OPCUAHandler:
+    """Handle OPC-UA data change notifications."""
+
+    def datachange_notification(self, node, val, data) -> None:
+        nid = node.nodeid.to_string()
+        parsed = node_id_map.get(nid)
+        if not parsed:
+            return
+        robot_id, joint_id, metric = parsed
+
+        monitor.update_joint(robot_id, joint_id, metric, float(val))
+        monitor.update_status(robot_id, "running")
+
+        if metric in ("temperature", "torque", "vibration", "current"):
+            alarms.evaluate(robot_id, joint_id, metric, float(val))
+            predictions.add_sample(robot_id, joint_id, metric, float(val))
 
 
 async def ws_broadcaster() -> None:
